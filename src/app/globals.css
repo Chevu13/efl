@@ -1,0 +1,32 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { @apply bg-bg text-ink font-sans antialiased; }
+  ::selection { @apply bg-brand text-bg; }
+  *:focus-visible { @apply outline-none ring-2 ring-brand ring-offset-2 ring-offset-bg; }
+}
+
+@layer components {
+  .card { @apply bg-surface border border-line rounded-card; }
+  .btn { @apply inline-flex items-center justify-center gap-2 h-11 px-5 rounded-card
+          text-sm font-semibold transition-all active:translate-y-0 hover:-translate-y-0.5
+          disabled:opacity-40 disabled:pointer-events-none; }
+  .btn-primary { @apply btn bg-brand text-bg hover:bg-[#FF7438]; }
+  .btn-data { @apply btn bg-data text-[#06121C] hover:bg-[#54C4FF]; }
+  .btn-ghost { @apply btn border border-line text-muted hover:text-ink hover:bg-elev; }
+  .field { @apply w-full h-11 px-3.5 bg-bg border border-line rounded-card text-sm
+           placeholder:text-muted focus:border-brand; }
+  .chip { @apply inline-flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.12em]
+          uppercase px-2 py-1 rounded-chip; }
+  .stat { @apply font-mono tabular-nums font-bold tracking-tight; }
+  .label { @apply font-mono text-[9.5px] tracking-[0.14em] text-muted uppercase; }
+  .eyebrow { @apply font-mono text-[11px] tracking-[0.18em] text-muted uppercase
+             flex items-center gap-3 before:content-[''] before:w-5 before:h-0.5 before:bg-brand; }
+}
+
+/* Trajectory Grid — brend motiv */
+.tgrid { background-image: repeating-linear-gradient(to bottom,
+         rgba(255,255,255,.04) 0 1px, transparent 1px 40px); }
