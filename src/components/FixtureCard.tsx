@@ -1,4 +1,5 @@
 'use client';
+import TeamCrest from './TeamCrest';
 import { teamName } from '@/lib/format';
 import type { Fixture, Team } from '@/lib/types';
 
@@ -22,10 +23,7 @@ export default function FixtureCard({
       <div className="mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
         {[f.home_code, f.away_code].map((code, i) => (
           <div key={code} className={`flex flex-col items-center gap-2 ${i ? 'order-3' : ''}`}>
-            <span className="grid h-10 w-10 place-items-center rounded-lg border border-line
-                             bg-elev font-mono text-[10px] font-bold text-muted">
-              {code}
-            </span>
+            <TeamCrest team={teams[code]} code={code} s="lg" />
             <span className="text-center text-[12.5px] font-semibold leading-tight">
               {teamName(teams, code)}
             </span>

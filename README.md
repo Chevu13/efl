@@ -98,3 +98,18 @@ select obracunaj_kolo(1);
 
 Poslednja linija obeleži tačne odgovore, izračuna tačnost i svima sa 9/10
 automatski doda PRO na 8 dana.
+
+## Ubacivanje slika
+
+Slike stavi u `public/slike/players/` (ime fajla = id igrača, npr. `james-m-efs.png`)
+i `public/slike/logos/` (ime = kod tima, npr. `par.png`), pa pokreni:
+
+```bash
+npm run slike
+```
+
+Skripta napravi javne buckete ako ne postoje, pošalje fajlove, upiše putanju u
+`players.photo` odnosno `teams.logo`, i preskoči sve za šta u bazi nema para.
+Na kraju ispiše koliko igrača ima sliku a koliko ne.
+
+Traži `SUPABASE_SERVICE_ROLE_KEY` u `.env.local` — pokreće se lokalno, nikad na sajtu.

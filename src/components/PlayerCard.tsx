@@ -1,4 +1,5 @@
 import PlayerPhoto from './PlayerPhoto';
+import TeamCrest from './TeamCrest';
 import { num, valueClass, matchupClass, matchupWord, teamName } from '@/lib/format';
 import type { PricedPlayer, Team } from '@/lib/types';
 
@@ -59,9 +60,12 @@ export default function PlayerCard({
               {p.position}
             </span>
           </div>
-          <div className="label mt-1 truncate">
-            {p.jersey != null && `#${p.jersey} · `}
-            {teamName(teams, p.team_code)}
+          <div className="mt-1 flex items-center gap-1.5">
+            {p.team_code && <TeamCrest team={teams[p.team_code]} code={p.team_code} s="sm" />}
+            <span className="label truncate">
+              {p.jersey != null && `#${p.jersey} · `}
+              {teamName(teams, p.team_code)}
+            </span>
           </div>
         </div>
       </div>

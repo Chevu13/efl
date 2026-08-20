@@ -1,5 +1,6 @@
 import { getAllPlayers, getTeams } from '@/lib/data';
 import PlayerPhoto from '@/components/PlayerPhoto';
+import TeamCrest from '@/components/TeamCrest';
 
 export const revalidate = 3600;
 
@@ -21,6 +22,7 @@ export default async function Baza() {
       {Object.keys(byTeam).sort().map((code) => (
         <section key={code}>
           <div className="mt-8 flex items-center gap-3">
+            <TeamCrest team={teams[code]} code={code} s="md" />
             <span className="font-display text-[15px] font-bold">{teams[code]?.name_sr ?? code}</span>
             <span className="label">{code}</span>
             <span className="h-px flex-1 bg-line" />

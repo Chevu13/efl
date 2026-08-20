@@ -1,4 +1,7 @@
+'use client';
+
 import Image from 'next/image';
+import { useState } from 'react';
 import { storageUrl } from '@/lib/format';
 import type { Player } from '@/lib/types';
 
@@ -28,7 +31,14 @@ const box: Record<Size, string> = {
   lg: 'h-full w-full text-4xl'
 };
 
-const px: Record<Size, number> = { sm: 36, md: 48, lg: 320 };
+const px: Record<Size, number> = { sm: 72, md: 128, lg: 640 };
+
+/** Portreti su kadrirani do struka — bez zuma glava ispadne sitna u krugu. */
+const ZOOM: Record<Size, string> = {
+  sm: 'scale-[1.7] translate-y-[14%]',
+  md: 'scale-[1.7] translate-y-[14%]',
+  lg: 'scale-[1.15] translate-y-[2%]'
+};
 
 /**
  * Slika igrača. Ako u Storage postoji fotografija — prikazuje nju.
@@ -44,6 +54,7 @@ export default function PlayerPhoto({
   size?: Size;
   round?: boolean;
 }) {
+  const [pao, setPao] = useState(false);
   const src = storageUrl(player.photo);
   const hue = teamHue(player.team_code);
   const shape = round ? 'rounded-full' : 'rounded-card';
@@ -56,14 +67,15 @@ export default function PlayerPhoto({
           hsl(${hue} 45% 22% / .85) 0%, transparent 70%)`
       }}
     >
-      {src ? (
+      {src && !pao ? (
         <Image
           src={src}
           alt={player.short_name}
           width={px[size]}
           height={px[size]}
-          className="h-full w-full object-cover object-top"
-          unoptimized={size === 'sm'}
+          onError={() => setPao(true)}
+          className={`h-full w-full object-cover object-[center_top] ${ZOOM[size]}`}
+          unoptimized={size !== 'lg'}
         />
       ) : (
         <span className="absolute inset-0 grid place-items-center font-display font-bold text-white/35">
