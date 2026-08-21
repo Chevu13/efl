@@ -1,0 +1,70 @@
+EURO FANTASY LAB — POKRETANJE
+==============================
+
+Sve ide iz foldera projekta (tamo gde je package.json).
+
+
+1. PAKETI
+---------
+   npm install
+
+
+2. KLJUCEVI
+-----------
+   Napravi fajl  .env.local  i upisi:
+
+   NEXT_PUBLIC_SUPABASE_URL=https://ipkojwfhikunlwnmmdmg.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon public kljuc>
+   SUPABASE_SERVICE_ROLE_KEY=<service_role kljuc>
+
+   Oba kljuca: Supabase -> Settings -> API
+   VAZNO: rotiraj anon kljuc, posto je prosao kroz chat.
+
+
+3. SLIKE U BAZU  (jednom)
+-------------------------
+   npm run slike
+
+   Salje 227 slika igraca i 19 grbova u Supabase Storage
+   i upisuje putanje u bazu. Traje minut-dva.
+
+
+4. POKRENI
+----------
+   npm run dev
+
+   Otvori http://localhost:3000
+
+
+AKO REGISTRACIJA PUCA
+---------------------
+Nalepi 03_popravka.sql u Supabase -> SQL Editor -> Run.
+Zatim Authentication -> URL Configuration:
+   Site URL:       http://localhost:3000
+   Redirect URLs:  http://localhost:3000/auth/callback
+
+
+DA SAJT IMA STA DA PRIKAZE
+--------------------------
+Supabase -> Table Editor:
+
+  player_rounds   cene i projekcije za kolo
+                  round_id, player_id, price, projected,
+                  value_score, matchup_score, opponent_code,
+                  tier_pick (FREE/PLUS/PRO), why_sr
+
+  challenge_lines granice za igru kola
+                  round_id, player_id, line
+
+Bez player_rounds tab "Igraci" je prazan.
+Bez challenge_lines igra prikazuje samo tipovanje utakmica.
+
+
+NA VERCEL
+---------
+   git add .
+   git commit -m "slike i paketi"
+   git push
+
+Na Vercelu u Settings -> Environment Variables dodaj ista tri kljuca
+plus PayPal kad ga budes ukljucio.

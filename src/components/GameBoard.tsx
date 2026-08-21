@@ -29,7 +29,7 @@ export default function GameBoard({
   // Vrati ranije poslat listić
   useEffect(() => {
     if (!prijavljen) return;
-    fetch(`/api/listic?round_id=${round.id}`)
+    fetch(`/api/prognoza?round_id=${round.id}`)
       .then((r) => r.json())
       .then((d) => {
         if (!d.picks?.length) return;
@@ -62,7 +62,7 @@ export default function GameBoard({
         ? { kind: 'player' as const, line_id: Number(k.slice(1)), answer: v }
         : { kind: 'fixture' as const, fixture_id: Number(k.slice(1)), answer: v }
     );
-    const res = await fetch('/api/listic', {
+    const res = await fetch('/api/prognoza', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ round_id: round.id, picks })
@@ -83,11 +83,11 @@ export default function GameBoard({
                     strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h2 className="mt-4 font-display text-xl font-bold">Listić poslat</h2>
+          <h2 className="mt-4 font-display text-xl font-bold">Prognoza poslata</h2>
           <p className="mt-2 text-[13.5px] text-muted">
             Rezultati stižu posle poslednje utakmice kola. Vidimo se sledeće nedelje.
           </p>
-          <button onClick={() => setPoslat(false)} className="btn-ghost mt-6">Izmeni listić</button>
+          <button onClick={() => setPoslat(false)} className="btn-ghost mt-6">Izmeni prognozu</button>
         </div>
         <Lista board={board} />
       </>
@@ -193,12 +193,12 @@ export default function GameBoard({
         <p className="min-w-[150px] flex-1 text-[12.5px] text-muted">
           {preostalo
             ? <>Ostalo još <b className="font-mono text-ink">{preostalo}</b>.</>
-            : 'Listić je popunjen.'}
+            : 'Prognoza je popunjena.'}
           <br />Zaključava se na deadline kola.
         </p>
         {greska && <span className="font-mono text-[11px] text-warn">{greska}</span>}
         <button onClick={posalji} disabled={!!preostalo || busy} className="btn-primary">
-          {busy ? '…' : prijavljen ? 'Pošalji listić' : 'Prijavi se i pošalji'}
+          {busy ? '…' : prijavljen ? 'Pošalji prognozu' : 'Prijavi se i pošalji'}
         </button>
       </div>
 

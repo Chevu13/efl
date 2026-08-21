@@ -100,6 +100,10 @@ for (const p of POSLOVI) {
     const putanja = `${p.bucket}/${fajl}`;
     const telo = await readFile(path.join(p.folder, fajl));
 
+    // ako je isti igrač ranije imao .png, obriši ga da ne ostane dupli fajl
+    const drugi = fajl.endsWith('.jpg') ? `${id}.png` : `${id}.jpg`;
+    await sb.storage.from(p.bucket).remove([drugi]).catch(() => {});
+
     const { error: up } = await sb.storage.from(p.bucket)
       .upload(fajl, telo, { contentType: tip, upsert: true, cacheControl: '31536000' });
     if (up) { console.error(`  ! ${fajl}: ${up.message}`); greske++; continue; }

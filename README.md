@@ -113,3 +113,41 @@ Skripta napravi javne buckete ako ne postoje, pošalje fajlove, upiše putanju u
 Na kraju ispiše koliko igrača ima sliku a koliko ne.
 
 Traži `SUPABASE_SERVICE_ROLE_KEY` u `.env.local` — pokreće se lokalno, nikad na sajtu.
+
+## Potvrda mejla
+
+Supabase → Authentication → URL Configuration:
+
+- **Site URL**: `http://localhost:3000` (kasnije Vercel adresa)
+- **Redirect URLs**:
+  ```
+  http://localhost:3000/auth/callback
+  https://tvoj-sajt.vercel.app/auth/callback
+  ```
+
+Link iz mejla stiže na `/auth/callback`, koja razmeni kod za sesiju i
+prebaci korisnika na `/igra`. Ako je link istekao ili već iskorišćen,
+vodi na `/auth/greska` gde može da zatraži novi.
+
+Šabloni mejlova su u `supabase/mejlovi/` — nalepi ih u
+Authentication → Emails.
+
+## Plaćanje (PayPal)
+
+1. PayPal Developer → Apps & Credentials → napravi app
+2. U `.env.local` i na Vercelu dodaj:
+   - `NEXT_PUBLIC_PAYPAL_CLIENT_ID` — client id (javan, ide u pregledač)
+   - `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET` — za proveru webhooka
+   - `PAYPAL_WEBHOOK_ID`, `PAYPAL_ENV=sandbox`
+3. PayPal → Webhooks → dodaj `https://tvoj-sajt.vercel.app/api/paypal/webhook`,
+   događaj `PAYMENT.CAPTURE.COMPLETED`
+
+Dok `NEXT_PUBLIC_PAYPAL_CLIENT_ID` nije postavljen, kartice paketa lepo
+kažu da se plaćanje uključuje uskoro — ništa se ne lomi.
+
+**Cene su na dva mesta i moraju da se poklapaju:**
+`src/components/Paketi.tsx` (šta korisnik plaća) i `tierZaIznos()` u
+`src/app/api/paypal/webhook/route.ts` (koji paket dobija za taj iznos).
+
+Kupovina prosleđuje `custom_id` = id korisnika, pa webhook zna kome
+da doda pretplatu. Bez toga uplata stigne, ali ne zna se čija je.

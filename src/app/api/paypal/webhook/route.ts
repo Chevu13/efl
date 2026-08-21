@@ -50,10 +50,15 @@ async function verifikuj(headers: Headers, body: unknown) {
   return j.verification_status === 'SUCCESS';
 }
 
-/** Iznos -> paket. Podesi po svojim cenama. */
+/**
+ * Iznos -> paket.
+ * MORA da se poklapa sa cenama u src/components/Paketi.tsx.
+ * Ako tamo promeniš cenu, promeni i ovde.
+ */
 function tierZaIznos(eur: number): { tier: Tier; days: number } {
-  if (eur >= 25) return { tier: 'ULTRA', days: 30 };
-  if (eur >= 15) return { tier: 'PRO', days: 30 };
+  if (eur >= 29) return { tier: 'ULTRA', days: 30 };
+  if (eur >= 19) return { tier: 'PRO', days: 30 };
+  if (eur >= 9) return { tier: 'PLUS', days: 30 };
   return { tier: 'PLUS', days: 30 };
 }
 

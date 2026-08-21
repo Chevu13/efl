@@ -35,7 +35,7 @@ export default function TeamCrest({
     <span
       className={`relative grid shrink-0 place-items-center overflow-hidden rounded-lg
                   border border-line font-mono font-bold text-muted ${size[s]}`}
-      style={{ background: `hsl(${h} 40% 16%)` }}
+      style={src && !pao ? { background: '#000' } : { background: `hsl(${h} 40% 16%)` }}
       title={team?.name_sr ?? code}
     >
       {src && !pao ? (
@@ -45,7 +45,7 @@ export default function TeamCrest({
         <img
           src={src}
           alt={team?.name_sr ?? code}
-          className="h-full w-full object-contain p-1"
+          className="h-full w-full object-cover"
           onError={() => setPao(true)}
           loading="lazy"
         />

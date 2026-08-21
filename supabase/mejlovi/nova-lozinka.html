@@ -1,0 +1,114 @@
+<!--
+  EURO FANTASY LAB — mejl za promenu lozinke
+
+  Gde se ubacuje:
+    Supabase → Authentication → Emails → Reset password
+    Subject:  Nova lozinka — Euro Fantasy Lab
+    Body:     nalepi sve ispod
+
+  Napomena: mejl klijenti (naročito Outlook) ignorišu spoljni CSS,
+  zato je sve pisano inline i preko tabela.
+-->
+<table width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background:#0B0C0E;padding:32px 16px;font-family:Helvetica,Arial,sans-serif;">
+  <tr>
+    <td align="center">
+      <table width="100%" cellpadding="0" cellspacing="0" border="0"
+             style="max-width:520px;background:#15171B;border:1px solid #2A2D33;border-radius:12px;">
+
+        <!-- zaglavlje -->
+        <tr>
+          <td style="padding:32px 32px 0;">
+            <table cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding-right:10px;">
+                  <img src="https://ipkojwfhikunlwnmmdmg.supabase.co/storage/v1/object/public/logos/mark.png"
+                       width="28" height="28" alt="" style="display:block;border:0;" />
+                </td>
+                <td style="font-size:15px;font-weight:bold;color:#F3F4F5;letter-spacing:-0.2px;">
+                  EURO<span style="color:#FF5E1A;">FANTASY</span>LAB
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- naslov -->
+        <tr>
+          <td style="padding:28px 32px 0;">
+            <div style="font-family:'JetBrains Mono',Consolas,monospace;font-size:11px;
+                        letter-spacing:2px;color:#9BA1AA;text-transform:uppercase;">
+              Nova lozinka
+            </div>
+            <h1 style="margin:12px 0 0;font-size:24px;line-height:1.25;color:#F3F4F5;
+                       font-weight:bold;letter-spacing:-0.5px;">
+              Postavi novu lozinku.
+            </h1>
+            <p style="margin:14px 0 0;font-size:15px;line-height:1.6;color:#9BA1AA;">
+              Neko je zatražio novu lozinku za tvoj nalog. Ako to nisi bio ti,
+              samo obriši ovu poruku — lozinka ostaje ista.
+            </p>
+          </td>
+        </tr>
+
+        <!-- dugme -->
+        <tr>
+          <td style="padding:28px 32px 0;">
+            <table cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="background:#FF5E1A;border-radius:8px;">
+                  <a href="{{ .ConfirmationURL }}"
+                     style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:bold;
+                            color:#0B0C0E;text-decoration:none;">
+                    Postavi lozinku
+                  </a>
+                </td>
+              </tr>
+            </table>
+            <p style="margin:16px 0 0;font-size:12.5px;line-height:1.6;color:#9BA1AA;">
+              Ako dugme ne radi, nalepi ovu adresu u pregledač:<br />
+              <span style="color:#2DB4FF;word-break:break-all;">{{ .ConfirmationURL }}</span>
+            </p>
+          </td>
+        </tr>
+
+        <!-- šta te čeka -->
+        <tr>
+          <td style="padding:28px 32px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="border-top:1px solid #2A2D33;">
+              <tr>
+                <td style="padding-top:20px;font-size:13.5px;line-height:1.7;color:#9BA1AA;">
+                  <b style="color:#F3F4F5;">Savet:</b><br />
+                  Koristi lozinku od najmanje 10 znakova koju nemaš nigde drugde.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <!-- podnožje -->
+        <tr>
+          <td style="padding:24px 32px 32px;">
+            <table width="100%" cellpadding="0" cellspacing="0" border="0"
+                   style="border-top:1px solid #2A2D33;">
+              <tr>
+                <td style="padding-top:18px;font-family:'JetBrains Mono',Consolas,monospace;
+                           font-size:11px;line-height:1.7;color:#9BA1AA;">
+                  Link važi 24 sata i može se otvoriti samo jednom.<br />
+                  Ako nisi ti tražio promenu, slobodno obriši ovu poruku.
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+      </table>
+
+      <div style="max-width:520px;margin:18px auto 0;font-family:'JetBrains Mono',Consolas,monospace;
+                  font-size:10px;letter-spacing:1px;color:#4A4F57;text-align:center;">
+        EURO FANTASY LAB · NEZAVISNA ANALITIČKA PLATFORMA
+      </div>
+    </td>
+  </tr>
+</table>

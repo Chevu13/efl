@@ -1,97 +1,211 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { getMyTier } from '@/lib/data';
+import { getMyTier, getTeams } from '@/lib/data';
+import PlayerPhoto from '@/components/PlayerPhoto';
+import TeamCrest from '@/components/TeamCrest';
+import Paketi from '@/components/Paketi';
 
 export const dynamic = 'force-dynamic';
 
-const PAKETI = [
-  { tier: 'FREE', cena: '€0', opis: '1 izbor po kolu', feats: ['Izbor kola', 'Raspored i predikcije', 'Igra kola'] },
-  { tier: 'PLUS', cena: '€X', opis: '3 izbora po kolu', feats: ['Sve iz FREE', '3 izbora po kolu', 'Cela tabela igrača'] },
-  { tier: 'PRO', cena: '€X', opis: 'Svi igrači kola', feats: ['Sve iz PLUS', 'Svi igrači sa cenom', 'Forma i minuti', 'Profili igrača'] },
-  { tier: 'ULTRA', cena: '€X', opis: 'Optimizator tima', feats: ['Sve iz PRO', 'Najbolja 4 transfera', 'Računa tvoje kredite'] }
-];
+type Presek = { tacno: number; ukupno: number };
+const pct = (p: Presek) => (p.ukupno ? Math.round((p.tacno / p.ukupno) * 100) : null);
 
-export default async function Profil() {
+export default async function Profil({ searchParams }: { searchParams: { period?: string } }) {
   const { email, tier, userId } = await getMyTier();
   if (!userId) redirect('/prijava');
 
   const sb = createClient();
-  const { data: pretplate } = await sb
-    .from('subscriptions').select('*').order('created_at', { ascending: false }).limit(5);
-  const { data: listici } = await sb
-    .from('entries').select('*').order('round_id', { ascending: false }).limit(10);
+  const teams = await getTeams();
+  const period = searchParams.period ?? 'sezona';
 
-  const ukupno = (listici ?? []).reduce(
-    (a, e: any) => ({ c: a.c + (e.correct ?? 0), t: a.t + (e.total ?? 0) }), { c: 0, t: 0 });
-  const tacnost = ukupno.t ? Math.round((ukupno.c / ukupno.t) * 100) : null;
+  const { data: prognoze } = await sb
+    .from('entries')
+    .select(`
+      id, round_id, submitted_at, correct, total, accuracy,
+      rounds ( number, season ),
+      picks (
+        id, kind, answer, is_correct,
+        challenge_lines ( line, result, players ( id, short_name, photo, jersey, team_code, position ) ),
+        fixtures ( home_code, away_code, home_score, away_score )
+      )
+    `)
+    .eq('user_id', userId)
+    .order('round_id', { ascending: false });
+
+  const sve = (prognoze ?? []) as any[];
+
+  const sad = new Date();
+  const uPeriodu = sve.filter((e) => {
+    if (period === 'sezona') return true;
+    if (period === 'kolo') return e.round_id === sve[0]?.round_id;
+    const d = new Date(e.submitted_at);
+    return d.getMonth() === sad.getMonth() && d.getFullYear() === sad.getFullYear();
+  });
+
+  const zbir = (kind?: string): Presek =>
+    uPeriodu.reduce(
+      (a, e) => {
+        const p = (e.picks ?? []).filter((x: any) => (kind ? x.kind === kind : true));
+        return {
+          tacno: a.tacno + p.filter((x: any) => x.is_correct === true).length,
+          ukupno: a.ukupno + p.filter((x: any) => x.is_correct !== null).length
+        };
+      },
+      { tacno: 0, ukupno: 0 }
+    );
+
+  const ukupno = zbir();
+  const igraci = zbir('player');
+  const meceva = zbir('fixture');
+
+  let niz = 0, najduzi = 0;
+  for (const e of sve) {
+    const n = (e.picks ?? []).filter((p: any) => p.kind === 'player' && p.is_correct).length;
+    if (n >= 9) { niz++; najduzi = Math.max(najduzi, niz); } else niz = 0;
+  }
+
+  const PERIODI = [['kolo', 'KOLO'], ['mesec', 'MESEC'], ['sezona', 'SEZONA']] as const;
 
   return (
     <>
-      <p className="eyebrow">Profil</p>
-      <h1 className="mt-3 font-display text-3xl font-bold tracking-tight">{email}</h1>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">Profil</p>
+          <h1 className="mt-3 font-display text-3xl font-bold tracking-tight">{email}</h1>
+        </div>
+        <span className={`chip ${tier === 'FREE' ? 'bg-elev text-muted' : 'bg-brand/15 text-brand'}`}>
+          {tier}
+        </span>
+      </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-card border border-line bg-line md:grid-cols-4">
+      <div className="mt-6 flex gap-1.5">
+        {PERIODI.map(([k, l]) => (
+          <Link key={k} href={`/profil?period=${k}`}
+                className={`rounded-md border px-3.5 py-2 font-mono text-[11px] tracking-[0.14em] transition-colors
+                  ${period === k ? 'border-white/20 bg-surface text-ink' : 'border-line text-muted hover:text-ink'}`}>
+            {l}
+          </Link>
+        ))}
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-px overflow-hidden rounded-card border border-line bg-line md:grid-cols-4">
         {[
-          ['Paket', tier],
-          ['Tačnost', tacnost != null ? `${tacnost}%` : '—'],
-          ['Odigrano kola', String((listici ?? []).length)],
-          ['Tačnih odgovora', `${ukupno.c}/${ukupno.t}`]
-        ].map(([l, v]) => (
+          ['TAČNOST', pct(ukupno) != null ? `${pct(ukupno)}%` : '—', 'text-brand'],
+          ['IGRAČI', `${igraci.tacno}/${igraci.ukupno}`, ''],
+          ['UTAKMICE', `${meceva.tacno}/${meceva.ukupno}`, ''],
+          ['ODIGRANO KOLA', String(uPeriodu.length), '']
+        ].map(([l, v, c]) => (
           <div key={l} className="bg-surface p-4">
-            <div className="text-[11px] text-muted">{l}</div>
-            <div className={`stat mt-1.5 text-xl ${l === 'Tačnost' ? 'text-brand' : ''}`}>{v}</div>
+            <div className="label">{l}</div>
+            <div className={`stat mt-2 text-2xl ${c}`}>{v}</div>
           </div>
         ))}
       </div>
 
-      <h2 className="mt-12 font-display text-2xl font-bold tracking-tight">Paketi</h2>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {PAKETI.map((p) => (
-          <div key={p.tier}
-               className={`card flex flex-col gap-4 p-5 ${
-                 p.tier === tier ? 'border-brand' : p.tier === 'ULTRA' ? 'border-data/40' : ''}`}>
-            <div>
-              <div className="font-display text-[15px] font-bold tracking-wide">{p.tier}</div>
-              <div className="stat mt-2 text-2xl">{p.cena}
-                <span className="ml-1 text-[11px] font-normal text-muted">/ mesečno</span></div>
-            </div>
-            <div className="border-b border-line pb-3 font-mono text-[12px] text-muted">{p.opis}</div>
-            <ul className="flex-1 space-y-2">
-              {p.feats.map((f) => (
-                <li key={f} className="flex gap-2 text-[13px] text-muted">
-                  <span className="mt-2 h-px w-2 shrink-0 bg-brand" />{f}
-                </li>
-              ))}
-            </ul>
-            {p.tier === tier
-              ? <span className="chip justify-center bg-brand/15 py-2 text-brand">Aktivan paket</span>
-              : <Link href="/profil#kupovina" className="btn-ghost w-full">Izaberi</Link>}
-          </div>
-        ))}
-      </div>
-
-      <p className="mt-4 font-mono text-[11.5px] tracking-wide text-muted">
-        CENE U PRIPREMI · PLAĆANJE PREKO PAYPAL-A · OTKAZIVANJE U SVAKOM TRENUTKU
-      </p>
-
-      {!!pretplate?.length && (
-        <>
-          <h2 className="mt-12 font-display text-2xl font-bold tracking-tight">Istorija pretplata</h2>
-          <div className="mt-4 overflow-hidden rounded-card border border-line">
-            {pretplate.map((s: any) => (
-              <div key={s.id}
-                   className="flex items-center justify-between gap-3 border-b border-line p-3.5 text-[13px] last:border-0">
-                <span className="chip bg-elev text-muted">{s.tier}</span>
-                <span className="font-mono text-[11px] text-muted">{s.source}</span>
-                <span className="font-mono text-[11px] text-muted">
-                  {s.ends_at ? new Date(s.ends_at).toLocaleDateString('sr-RS') : 'bez roka'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </>
+      {najduzi > 0 && (
+        <p className="mt-3 font-mono text-[11.5px] text-muted">
+          NAJDUŽI NIZ SA 9+ POGODAKA: <b className="text-ok">{najduzi}</b> {najduzi === 1 ? 'kolo' : 'kola'}
+        </p>
       )}
+
+      <h2 className="mt-12 font-display text-2xl font-bold tracking-tight">Kolo po kolo</h2>
+
+      {!sve.length && (
+        <div className="card mt-4 p-10 text-center">
+          <p className="text-muted">Još nisi poslao nijednu prognozu.</p>
+          <Link href="/igra" className="btn-primary mt-5">Igraj ovo kolo</Link>
+        </div>
+      )}
+
+      <div className="mt-4 space-y-3">
+        {sve.map((e) => {
+          const pi = (e.picks ?? []).filter((p: any) => p.kind === 'player');
+          const pm = (e.picks ?? []).filter((p: any) => p.kind === 'fixture');
+          const tacnoI = pi.filter((p: any) => p.is_correct).length;
+          const tacnoM = pm.filter((p: any) => p.is_correct).length;
+
+          return (
+            <details key={e.id} className="card group overflow-hidden">
+              <summary className="flex cursor-pointer flex-wrap items-center gap-3 p-4 hover:bg-elev">
+                <span className="stat w-16 text-lg">
+                  {e.rounds?.number ?? e.round_id}.
+                  <span className="ml-0.5 text-[10px] font-normal text-muted">KOLO</span>
+                </span>
+                <span className="font-mono text-[12px] text-muted">
+                  igrači <b className="text-ink">{tacnoI}/{pi.length}</b>
+                  <span className="mx-2 text-line">·</span>
+                  utakmice <b className="text-ink">{tacnoM}/{pm.length}</b>
+                </span>
+                {tacnoI >= 9 && <span className="chip bg-ok/15 text-ok">PRO NAGRADA</span>}
+                <span className="ml-auto flex items-center gap-3">
+                  {e.total != null ? (
+                    <span className={`stat text-lg ${e.accuracy >= 70 ? 'text-ok' : 'text-ink'}`}>
+                      {Math.round(e.accuracy)}%
+                    </span>
+                  ) : (
+                    <span className="chip bg-elev text-muted">ČEKA REZULTATE</span>
+                  )}
+                  <span className="text-muted transition-transform group-open:rotate-90">›</span>
+                </span>
+              </summary>
+
+              <div className="border-t border-line">
+                {pi.map((p: any) => {
+                  const ig = p.challenge_lines?.players;
+                  if (!ig) return null;
+                  return (
+                    <div key={p.id} className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-0">
+                      <PlayerPhoto player={ig} size="sm" />
+                      <span className="min-w-0 flex-1 truncate text-[13.5px]">{ig.short_name}</span>
+                      <span className="hidden font-mono text-[11px] text-muted sm:inline">
+                        granica {Number(p.challenge_lines.line).toFixed(1)}
+                      </span>
+                      <span className={`chip ${p.answer === 'over' ? 'bg-brand/15 text-brand' : 'bg-data/15 text-data'}`}>
+                        {p.answer === 'over' ? 'IZNAD' : 'ISPOD'}
+                      </span>
+                      <Ishod v={p.is_correct} />
+                    </div>
+                  );
+                })}
+
+                {pm.map((p: any) => {
+                  const f = p.fixtures;
+                  if (!f) return null;
+                  const moj = p.answer === 'home' ? f.home_code : f.away_code;
+                  return (
+                    <div key={p.id} className="flex items-center gap-3 border-b border-line px-4 py-2.5 last:border-0">
+                      <TeamCrest team={teams[moj]} code={moj} s="sm" />
+                      <span className="min-w-0 flex-1 truncate text-[13.5px]">
+                        {teams[f.home_code]?.name_sr ?? f.home_code}
+                        <span className="mx-1.5 text-muted">—</span>
+                        {teams[f.away_code]?.name_sr ?? f.away_code}
+                      </span>
+                      {f.home_score != null && (
+                        <span className="stat text-[12px] text-muted">{f.home_score}:{f.away_score}</span>
+                      )}
+                      <Ishod v={p.is_correct} />
+                    </div>
+                  );
+                })}
+              </div>
+            </details>
+          );
+        })}
+      </div>
+
+      <div id="paketi" className="scroll-mt-20">
+        <Paketi trenutni={tier} userId={userId} />
+      </div>
     </>
+  );
+}
+
+function Ishod({ v }: { v: boolean | null }) {
+  if (v === null) return <span className="w-5 text-center font-mono text-[11px] text-muted">·</span>;
+  return (
+    <span className={`w-5 text-center font-mono text-sm ${v ? 'text-ok' : 'text-bad'}`}>
+      {v ? '✓' : '✕'}
+    </span>
   );
 }

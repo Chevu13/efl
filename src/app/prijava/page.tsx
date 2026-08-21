@@ -17,15 +17,19 @@ export default function Prijava() {
     const sb = createClient();
     const { error } = reg
       ? await sb.auth.signUp({
-          email: mejl, password: loz,
-          options: { data: { username: ime || mejl.split('@')[0] } }
+          email: mejl,
+          password: loz,
+          options: {
+            data: { username: ime || mejl.split('@')[0] },
+            emailRedirectTo: `${window.location.origin}/auth/callback`
+          }
         })
       : await sb.auth.signInWithPassword({ email: mejl, password: loz });
     setBusy(false);
 
     if (error) { setMsg(error.message); return; }
     const { data } = await sb.auth.getSession();
-    if (!data.session) { setMsg('Proveri mejl za potvrdu naloga.'); return; }
+    if (!data.session) { setMsg(`Poslali smo link na ${mejl}. Otvori ga da završiš registraciju.`); return; }
     router.refresh();
     router.push('/igra');
   }
@@ -37,7 +41,7 @@ export default function Prijava() {
         <p className="mt-2 text-[13.5px] leading-relaxed text-muted">
           {reg
             ? 'Besplatno. Treba ti da igraš kolo i pratiš svoju statistiku.'
-            : 'Tvoji listići i statistika vezani su za nalog.'}
+            : 'Tvoji prognoze i statistika vezani su za nalog.'}
         </p>
 
         <div className="mt-6 space-y-3">

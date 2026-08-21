@@ -33,11 +33,14 @@ const box: Record<Size, string> = {
 
 const px: Record<Size, number> = { sm: 72, md: 128, lg: 640 };
 
-/** Portreti su kadrirani do struka — bez zuma glava ispadne sitna u krugu. */
+/**
+ * Portreti su kadrirani do ramena i sede na crnoj podlozi.
+ * Blag zum spusti lice u sredinu kruga; jak zum bi odsekao glavu.
+ */
 const ZOOM: Record<Size, string> = {
-  sm: 'scale-[1.7] translate-y-[14%]',
-  md: 'scale-[1.7] translate-y-[14%]',
-  lg: 'scale-[1.15] translate-y-[2%]'
+  sm: 'scale-[1.25] translate-y-[6%]',
+  md: 'scale-[1.25] translate-y-[6%]',
+  lg: 'scale-[1.05]'
 };
 
 /**
@@ -62,10 +65,14 @@ export default function PlayerPhoto({
   return (
     <div
       className={`relative shrink-0 overflow-hidden border border-line bg-elev ${box[size]} ${shape}`}
-      style={{
-        backgroundImage: `radial-gradient(120% 100% at 50% 0%,
-          hsl(${hue} 45% 22% / .85) 0%, transparent 70%)`
-      }}
+      style={
+        src && !pao
+          ? { background: '#000' }
+          : {
+              backgroundImage: `radial-gradient(120% 100% at 50% 0%,
+                hsl(${hue} 45% 22% / .85) 0%, transparent 70%)`
+            }
+      }
     >
       {src && !pao ? (
         <Image
@@ -83,14 +90,14 @@ export default function PlayerPhoto({
         </span>
       )}
 
-      {/* dijagonalna šrafura — deo brend jezika, ne ukras */}
-      <span
+      {/* šrafura samo preko monograma, ne preko fotografije */}
+      {!(src && !pao) && <span
         className="pointer-events-none absolute inset-0 opacity-[.07]"
         style={{
           backgroundImage:
             'repeating-linear-gradient(115deg, #fff 0 1px, transparent 1px 7px)'
         }}
-      />
+      />}
     </div>
   );
 }
