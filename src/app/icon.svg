@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="512" height="512">
+  <title>Euro Fantasy Lab</title>
+  <defs>
+    <clipPath id="ball"><circle cx="50" cy="50" r="42.5"/></clipPath>
+  </defs>
+  <circle cx="50" cy="50" r="46" fill="#DF6320" stroke="#000000" stroke-width="7"/>
+  <g clip-path="url(#ball)" stroke="#000000" stroke-width="4.6" fill="none">
+    <path d="M50 4 V96"/>
+    <path d="M4 50 H96"/>
+    <path d="M27 8 C 39 27, 39 73, 27 92"/>
+    <path d="M73 8 C 61 27, 61 73, 73 92"/>
+  </g>
+  <g fill="#000000">
+    <rect x="13" y="33" width="8" height="34"/>
+    <rect x="13" y="33" width="24" height="8"/>
+    <rect x="13" y="46" width="21" height="8"/>
+    <rect x="13" y="59" width="24" height="8"/>
+    <rect x="40" y="33" width="8" height="34"/>
+    <rect x="40" y="33" width="22" height="8"/>
+    <rect x="40" y="46" width="19" height="8"/>
+    <rect x="65" y="33" width="8" height="34"/>
+    <rect x="65" y="59" width="22" height="8"/>
+  </g>
+</svg>

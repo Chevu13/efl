@@ -1,97 +1,255 @@
-import Link from 'next/link';
+import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
-import { getMyTier } from '@/lib/data';
+import PricingTable from '@/components/premium/PricingTable';
+import { SectionHead, Chip, EmptyState, Alert } from '@/components/ui/primitives';
+import { StatStrip } from '@/components/ui/Stat';
+import { LinkButton } from '@/components/ui/Button';
+import { activeSubscription, getMyEntries, getMySubscriptions, getMyTier } from '@/lib/data';
+import { paypalConfigured, paypalEnv } from '@/lib/paypal/client';
+import { PLANS, planByCode } from '@/lib/config';
+import { dateShort, pct, untilLabel } from '@/lib/format';
+import { isPremium } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
-const PAKETI = [
-  { tier: 'FREE', cena: '€0', opis: '1 izbor po kolu', feats: ['Izbor kola', 'Raspored i predikcije', 'Igra kola'] },
-  { tier: 'PLUS', cena: '€X', opis: '3 izbora po kolu', feats: ['Sve iz FREE', '3 izbora po kolu', 'Cela tabela igrača'] },
-  { tier: 'PRO', cena: '€X', opis: 'Svi igrači kola', feats: ['Sve iz PLUS', 'Svi igrači sa cenom', 'Forma i minuti', 'Profili igrača'] },
-  { tier: 'ULTRA', cena: '€X', opis: 'Optimizator tima', feats: ['Sve iz PRO', 'Najbolja 4 transfera', 'Računa tvoje kredite'] }
-];
+export const metadata: Metadata = {
+  title: 'Profil',
+  description: 'Tvoj nalog, paket, uplate i statistika listica.'
+};
+
+const SOURCE_LABEL: Record<string, string> = {
+  paypal: 'PayPal',
+  code: 'Pristupni kod',
+  manual: 'Rucno dodeljeno',
+  reward: 'Nagrada za listic'
+};
 
 export default async function Profil() {
-  const { email, tier, userId } = await getMyTier();
-  if (!userId) redirect('/prijava');
+  const me = await getMyTier();
+  if (!me.userId) redirect('/prijava?next=%2Fprofil');
 
-  const sb = createClient();
-  const { data: pretplate } = await sb
-    .from('subscriptions').select('*').order('created_at', { ascending: false }).limit(5);
-  const { data: listici } = await sb
-    .from('entries').select('*').order('round_id', { ascending: false }).limit(10);
+  const [subs, entries] = await Promise.all([getMySubscriptions(), getMyEntries()]);
 
-  const ukupno = (listici ?? []).reduce(
-    (a, e: any) => ({ c: a.c + (e.correct ?? 0), t: a.t + (e.total ?? 0) }), { c: 0, t: 0 });
-  const tacnost = ukupno.t ? Math.round((ukupno.c / ukupno.t) * 100) : null;
+  const active = activeSubscription(subs);
+  const premium = isPremium(me.tier);
+  const plan = planByCode(me.tier);
+
+  const totals = entries.reduce(
+    (a, e) => ({ correct: a.correct + (e.correct ?? 0), total: a.total + (e.total ?? 0) }),
+    { correct: 0, total: 0 }
+  );
+  const accuracy = totals.total ? Math.round((totals.correct / totals.total) * 100) : null;
 
   return (
-    <>
-      <p className="eyebrow">Profil</p>
-      <h1 className="mt-3 font-display text-3xl font-bold tracking-tight">{email}</h1>
+    <div className="page py-10">
+      {/* ---------------- identitet ---------------- */}
+      <section className="relative overflow-hidden rounded-md border border-line bg-gradient-to-b from-surface to-sunken">
+        <div className="hatch pointer-events-none absolute inset-0 opacity-50" aria-hidden />
+        <div className="relative flex flex-wrap items-center gap-5 p-6 sm:p-8">
+          <span
+            className="grid h-16 w-16 shrink-0 place-items-center rounded-full border border-line-2
+                       bg-elev font-display text-[26px] font-extrabold uppercase text-ink-2"
+            aria-hidden
+          >
+            {(me.username ?? me.email ?? '?')[0]}
+          </span>
 
-      <div className="mt-6 grid grid-cols-2 gap-px overflow-hidden rounded-card border border-line bg-line md:grid-cols-4">
-        {[
-          ['Paket', tier],
-          ['Tačnost', tacnost != null ? `${tacnost}%` : '—'],
-          ['Odigrano kola', String((listici ?? []).length)],
-          ['Tačnih odgovora', `${ukupno.c}/${ukupno.t}`]
-        ].map(([l, v]) => (
-          <div key={l} className="bg-surface p-4">
-            <div className="text-[11px] text-muted">{l}</div>
-            <div className={`stat mt-1.5 text-xl ${l === 'Tačnost' ? 'text-brand' : ''}`}>{v}</div>
+          <div className="min-w-0 flex-1">
+            <p className="eyebrow">Nalog</p>
+            <h1 className="mt-2.5 truncate text-[clamp(24px,4vw,34px)] uppercase leading-none">
+              {me.username ?? me.email}
+            </h1>
+            <p className="mt-2 truncate text-small text-ink-3">{me.email}</p>
           </div>
-        ))}
-      </div>
 
-      <h2 className="mt-12 font-display text-2xl font-bold tracking-tight">Paketi</h2>
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {PAKETI.map((p) => (
-          <div key={p.tier}
-               className={`card flex flex-col gap-4 p-5 ${
-                 p.tier === tier ? 'border-brand' : p.tier === 'ULTRA' ? 'border-data/40' : ''}`}>
-            <div>
-              <div className="font-display text-[15px] font-bold tracking-wide">{p.tier}</div>
-              <div className="stat mt-2 text-2xl">{p.cena}
-                <span className="ml-1 text-[11px] font-normal text-muted">/ mesečno</span></div>
+          <div className="text-right">
+            <div className="label">Paket</div>
+            <div className={`stat mt-1.5 text-[34px] leading-none ${premium ? 'text-brand' : ''}`}>
+              {me.tier}
             </div>
-            <div className="border-b border-line pb-3 font-mono text-[12px] text-muted">{p.opis}</div>
-            <ul className="flex-1 space-y-2">
-              {p.feats.map((f) => (
-                <li key={f} className="flex gap-2 text-[13px] text-muted">
-                  <span className="mt-2 h-px w-2 shrink-0 bg-brand" />{f}
-                </li>
-              ))}
-            </ul>
-            {p.tier === tier
-              ? <span className="chip justify-center bg-brand/15 py-2 text-brand">Aktivan paket</span>
-              : <Link href="/profil#kupovina" className="btn-ghost w-full">Izaberi</Link>}
+            {active?.ends_at && (
+              <div className="mt-1.5 text-[11.5px] text-ink-3">
+                do {dateShort(active.ends_at)}
+              </div>
+            )}
           </div>
-        ))}
+        </div>
+      </section>
+
+      {/* ---------------- status pretplate ---------------- */}
+      <div className="mt-4">
+        {premium && active ? (
+          <Alert tone="ok" title={`${plan?.name ?? me.tier} je aktivan`}>
+            {active.ends_at ? (
+              <>
+                Pristup traje jos <b className="text-ink">{untilLabel(active.ends_at)}</b>, do{' '}
+                {dateShort(active.ends_at)}. Uplata je jednokratna — nista se ne obnavlja samo od
+                sebe i nema sta da se otkazuje.
+              </>
+            ) : (
+              'Pristup nema rok trajanja.'
+            )}
+          </Alert>
+        ) : (
+          <Alert tone="info" title="Besplatan paket">
+            Vidis jedan izbor kola, raspored, izazov i pocetak tabele igraca. Placeni paket
+            otkljucava celu analizu i optimizator.
+          </Alert>
+        )}
       </div>
 
-      <p className="mt-4 font-mono text-[11.5px] tracking-wide text-muted">
-        CENE U PRIPREMI · PLAĆANJE PREKO PAYPAL-A · OTKAZIVANJE U SVAKOM TRENUTKU
-      </p>
+      {/* ---------------- statistika ---------------- */}
+      <StatStrip
+        className="mt-6"
+        items={[
+          {
+            label: 'Tacnost',
+            value: accuracy != null ? pct(accuracy) : '—',
+            tone: accuracy != null ? 'brand' : 'muted',
+            hint: 'Procenat tacnih odgovora u svim odigranim listicima.'
+          },
+          { label: 'Odigrano kola', value: String(entries.length) },
+          { label: 'Tacnih odgovora', value: `${totals.correct}/${totals.total}` },
+          {
+            label: 'Uplata',
+            value: String(subs.filter((s) => s.source === 'paypal').length)
+          }
+        ]}
+      />
 
-      {!!pretplate?.length && (
-        <>
-          <h2 className="mt-12 font-display text-2xl font-bold tracking-tight">Istorija pretplata</h2>
-          <div className="mt-4 overflow-hidden rounded-card border border-line">
-            {pretplate.map((s: any) => (
-              <div key={s.id}
-                   className="flex items-center justify-between gap-3 border-b border-line p-3.5 text-[13px] last:border-0">
-                <span className="chip bg-elev text-muted">{s.tier}</span>
-                <span className="font-mono text-[11px] text-muted">{s.source}</span>
-                <span className="font-mono text-[11px] text-muted">
-                  {s.ends_at ? new Date(s.ends_at).toLocaleDateString('sr-RS') : 'bez roka'}
-                </span>
-              </div>
-            ))}
+      {/* ---------------- paketi ---------------- */}
+      <section id="paketi" className="mt-14 scroll-mt-[calc(var(--nav-h)+24px)]">
+        <SectionHead
+          eyebrow="Paketi"
+          title="Sta otkljucava koji paket"
+          desc="Jedna uplata otkljucava paket na 30 dana. Nema automatske obnove i nema sta da se otkazuje — kad istekne, nalog se vraca na besplatan paket."
+        />
+        <div className="mt-7">
+          <PricingTable
+            tier={me.tier}
+            loggedIn={!!me.userId}
+            paypalReady={paypalConfigured()}
+          />
+        </div>
+
+        {!paypalConfigured() && (
+          <div className="mt-4">
+            <Alert tone="warn" title="Placanje jos nije ukljuceno">
+              U okruzenju nedostaju <code className="font-mono">PAYPAL_CLIENT_ID</code> i{' '}
+              <code className="font-mono">PAYPAL_SECRET</code>. Do tada se paketi otkljucavaju
+              pristupnim kodom iz menija.
+            </Alert>
           </div>
-        </>
+        )}
+
+        {paypalConfigured() && paypalEnv() === 'sandbox' && (
+          <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.12em] text-warn">
+            PayPal radi u sandbox rezimu — uplate nisu stvarne.
+          </p>
+        )}
+      </section>
+
+      {/* ---------------- istorija ---------------- */}
+      <section className="mt-14">
+        <SectionHead
+          eyebrow="Istorija"
+          title="Uplate i pristup"
+          desc="Ovde stoji samo ono sto nam treba: paket, izvor i rok. Podaci o kartici i PayPal nalogu nikad ne dolaze do nas."
+        />
+
+        {subs.length === 0 ? (
+          <div className="mt-6">
+            <EmptyState
+              title="Jos nema uplata"
+              desc="Kad uzmes paket, ovde ce stajati datum, iznos i do kada vazi."
+              action={
+                <LinkButton href="#paketi" variant="ghost">
+                  Pogledaj pakete
+                </LinkButton>
+              }
+            />
+          </div>
+        ) : (
+          <div className="mt-6 overflow-hidden rounded-md border border-line">
+            <div className="overflow-x-auto">
+              <table className="tbl min-w-[560px]">
+                <thead>
+                  <tr>
+                    <th scope="col">Paket</th>
+                    <th scope="col">Izvor</th>
+                    <th scope="col">Pocetak</th>
+                    <th scope="col">Vazi do</th>
+                    <th scope="col" className="text-right">
+                      Status
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {subs.map((s) => {
+                    const live = !s.ends_at || new Date(s.ends_at).getTime() > Date.now();
+                    return (
+                      <tr key={String(s.id)}>
+                        <td>
+                          <span className="font-display text-[14px] font-extrabold uppercase">
+                            {s.tier}
+                          </span>
+                        </td>
+                        <td className="text-ink-3">
+                          {SOURCE_LABEL[s.source] ?? s.source}
+                          {s.note && (
+                            <span className="ml-2 font-mono text-[11px] text-ink-4">{s.note}</span>
+                          )}
+                        </td>
+                        <td className="text-ink-3">
+                          {dateShort(s.starts_at ?? s.created_at)}
+                        </td>
+                        <td className="text-ink-3">{dateShort(s.ends_at)}</td>
+                        <td className="text-right">
+                          <Chip tone={live ? 'brand' : 'default'}>{live ? 'Aktivno' : 'Isteklo'}</Chip>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ---------------- listici ---------------- */}
+      {entries.length > 0 && (
+        <section className="mt-14">
+          <SectionHead eyebrow="Izazov" title="Odigrana kola" />
+          <div className="mt-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {entries.slice(0, 8).map((e) => {
+              const ratio = e.total ? (e.correct ?? 0) / e.total : null;
+              return (
+                <div key={e.id} className="panel px-4 py-3.5">
+                  <div className="flex items-baseline justify-between">
+                    <span className="label">{e.round_id}. kolo</span>
+                    <span className="statmono text-[15px]">
+                      {e.correct ?? '—'}
+                      <span className="text-ink-4">/{e.total ?? '—'}</span>
+                    </span>
+                  </div>
+                  <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-elev">
+                    <div
+                      className="h-full rounded-full bg-brand"
+                      style={{ width: `${(ratio ?? 0) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       )}
-    </>
+
+      <p className="mt-10 text-[11.5px] leading-relaxed text-ink-4">
+        Cene: {PLANS.map((p) => `${p.name} ${(p.priceCents / 100).toFixed(2)} EUR`).join(' · ')}.
+        Placanje ide preko PayPal-a; pristup se dodeljuje tek posle potvrde uplate na serveru.
+      </p>
+    </div>
   );
 }

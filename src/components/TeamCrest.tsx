@@ -11,47 +11,58 @@ function hue(code: string) {
   return h;
 }
 
-const size = { sm: 'h-6 w-6 text-[8px]', md: 'h-9 w-9 text-[10px]', lg: 'h-12 w-12 text-xs' };
+const SIZE = {
+  xs: 'h-5 w-5 text-[7.5px]',
+  sm: 'h-7 w-7 text-[9px]',
+  md: 'h-9 w-9 text-[10px]',
+  lg: 'h-12 w-12 text-[12px]',
+  xl: 'h-16 w-16 text-[15px]'
+} as const;
 
 /**
  * Grb tima. Ako u Storage postoji fajl — prikazuje ga.
- * Ako ga nema, ili se ne učita, crta monogram sa kodom tima.
- * Rezervni prikaz radi i kad slika vrati grešku, pa konzola ostaje čista.
+ * Ako ga nema, ili se ne ucita, crta monogram sa kodom tima, pa
+ * raspored izgleda uredno i pre nego sto se grbovi ubace.
  */
 export default function TeamCrest({
   team,
   code,
-  s = 'md'
+  s = 'md',
+  className = ''
 }: {
   team?: Team | null;
   code: string;
-  s?: keyof typeof size;
+  s?: keyof typeof SIZE;
+  className?: string;
 }) {
-  const [pao, setPao] = useState(false);
+  const [failed, setFailed] = useState(false);
   const src = storageUrl(team?.logo ?? null);
   const h = hue(code);
+  const name = team?.name_sr ?? code.toUpperCase();
 
   return (
     <span
-      className={`relative grid shrink-0 place-items-center overflow-hidden rounded-lg
-                  border border-line font-mono font-bold text-muted ${size[s]}`}
-      style={{ background: `hsl(${h} 40% 16%)` }}
-      title={team?.name_sr ?? code}
+      className={`relative grid shrink-0 place-items-center overflow-hidden rounded-sm border
+                  border-line-2 font-mono font-bold uppercase tracking-tight text-ink-2
+                  ${SIZE[s]} ${className}`}
+      style={{ background: `hsl(${h} 32% 15%)` }}
+      title={name}
     >
-      {src && !pao ? (
-        // obično img, ne next/image — grbovi su sitni i često ih nema,
-        // pa nema smisla da optimizator vraća 400 za svaki
+      {src && !failed ? (
+        // obicni img, ne next/image — grbovi su sitni i cesto ih nema,
+        // pa nema smisla da optimizator vraca gresku za svaki
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={src}
-          alt={team?.name_sr ?? code}
+          alt=""
           className="h-full w-full object-contain p-1"
-          onError={() => setPao(true)}
+          onError={() => setFailed(true)}
           loading="lazy"
         />
       ) : (
-        code
+        <span aria-hidden>{code.slice(0, 3)}</span>
       )}
+      <span className="sr-only">{name}</span>
     </span>
   );
 }

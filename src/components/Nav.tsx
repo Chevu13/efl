@@ -1,116 +1,316 @@
 'use client';
+
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import Logomark from './brand/Logomark';
+import CodeDialog from './nav/CodeDialog';
+import { ACCOUNT, PRIMARY, isActive } from './nav/links';
 import { createClient } from '@/lib/supabase/client';
-import type { Tier } from '@/lib/types';
+import { untilLabel } from '@/lib/format';
+import { isPremium, type Tier } from '@/lib/types';
 
-const LINKS = [
-  { href: '/igra', label: 'Igra kola' },
-  { href: '/raspored', label: 'Raspored' },
-  { href: '/igraci', label: 'Igrači' },
-  { href: '/baza', label: 'Baza' }
-];
-
-export default function Nav({ email, tier }: { email: string | null; tier: Tier }) {
+/**
+ * Navigacija.
+ *
+ * Traka gore drzi identitet, glavne oblasti proizvoda i status naloga.
+ * Aktivna stranica se prepoznaje po narandzastoj crti ispod stavke —
+ * ne samo po boji teksta, da se vidi i bez percepcije boje.
+ *
+ * Na telefonu se glavne stavke sklapaju u panel preko celog ekrana sa
+ * velikim ciljevima za prst; panel se zatvara na Escape i na promenu rute.
+ */
+export default function Nav({
+  email,
+  username,
+  tier,
+  round
+}: {
+  email: string | null;
+  username: string | null;
+  tier: Tier;
+  round?: { number: number; deadline: string | null } | null;
+}) {
   const path = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [codeOpen, setCodeOpen] = useState(false);
+  const premium = isPremium(tier);
 
-  async function unesiKod() {
-    const kod = prompt('Unesi kod:');
-    if (!kod) return;
-    setBusy(true);
-    const res = await fetch('/api/kod', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ kod })
-    });
-    const out = await res.json();
-    setBusy(false);
-    alert(res.ok ? `Otključano: ${out.tier}` : out.error ?? 'Kod nije važeći.');
-    if (res.ok) router.refresh();
-  }
+  /* Panel se ne sme prevuci u sledecu stranicu. */
+  useEffect(() => setOpen(false), [path]);
 
-  async function odjava() {
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [open]);
+
+  async function signOut() {
     await createClient().auth.signOut();
+    setOpen(false);
     router.refresh();
     router.push('/');
   }
 
+  const deadline = untilLabel(round?.deadline);
+
   return (
-    <header className="fixed inset-x-0 top-0 z-50 h-14 border-b border-line bg-bg/85 backdrop-blur">
-      <nav className="mx-auto flex h-full max-w-6xl items-center gap-6 px-4">
-        <Link href="/" className="flex shrink-0 items-center gap-2.5">
-          <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden>
-            <path d="M16 2.6 27.4 9.1v13L16 28.6 4.6 22.1v-13L16 2.6Z" stroke="#F3F4F5" strokeWidth="1.5" />
-            <path d="M9.5 19.4 13.4 15l3.6 2.6L22.6 11" stroke="#2DB4FF" strokeWidth="1.6" strokeLinecap="round" />
-            <circle cx="22.6" cy="11" r="2.6" fill="#FF5E1A" />
-          </svg>
-          <span className="font-display text-[15px] font-bold tracking-tight">
-            EURO<span className="text-brand">FANTASY</span>LAB
-          </span>
-        </Link>
+    <>
+      <a
+        href="#sadrzaj"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100]
+                   focus:rounded-sm focus:bg-brand focus:px-4 focus:py-2 focus:font-semibold focus:text-black"
+      >
+        Preskoci na sadrzaj
+      </a>
 
-        <div className="hidden gap-5 md:flex">
-          {LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className={`text-sm transition-colors ${
-                path === l.href ? 'text-ink' : 'text-muted hover:text-ink'
-              }`}
-            >
-              {l.label}
-            </Link>
-          ))}
-        </div>
-
-        <div className="ml-auto flex items-center gap-2">
-          {email ? (
-            <>
-              {tier === 'FREE' ? (
-                <button onClick={unesiKod} disabled={busy} className="btn-ghost h-9 px-3 text-[13px]">
-                  Imam kod
-                </button>
-              ) : (
-                <Link href="/profil" className="chip bg-brand/15 text-brand">{tier}</Link>
-              )}
-              <button onClick={odjava} className="hidden text-sm text-muted hover:text-ink sm:block">
-                Odjava
-              </button>
-            </>
-          ) : (
-            <Link href="/prijava" className="btn-primary h-9 px-4 text-[13px]">Prijavi se</Link>
-          )}
-
-          <button
-            onClick={() => setOpen((v) => !v)}
-            aria-label="Meni"
-            className="grid h-9 w-9 place-items-center rounded-card border border-line md:hidden"
+      <header className="fixed inset-x-0 top-0 z-50 h-[var(--nav-h)] border-b border-line bg-bg/90 backdrop-blur-md">
+        <nav aria-label="Glavna navigacija" className="page flex h-full items-center gap-6">
+          {/* identitet */}
+          <Link
+            href="/"
+            aria-label="Euro Fantasy Lab — pocetna"
+            className="flex shrink-0 items-center gap-2.5 transition-opacity duration-fast hover:opacity-85"
           >
-            <span className="relative block h-px w-4 bg-ink before:absolute before:-top-1.5 before:block
-                             before:h-px before:w-4 before:bg-ink after:absolute after:top-1.5
-                             after:block after:h-px after:w-4 after:bg-ink" />
-          </button>
-        </div>
-      </nav>
+            <Logomark size={30} />
+            <span className="hidden font-display text-[17px] font-extrabold uppercase leading-none tracking-[-0.01em] sm:block">
+              <span className="text-ink">Euro</span>
+              <span className="text-brand">Fantasy</span>
+              <span className="text-ink">Lab</span>
+            </span>
+          </Link>
 
-      {open && (
-        <div className="border-b border-line bg-bg px-4 py-2 md:hidden">
-          {LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              onClick={() => setOpen(false)}
-              className="block border-b border-line py-3 text-[15px] last:border-0"
+          {/* glavne oblasti */}
+          <ul className="hidden min-w-0 flex-1 items-center gap-1 lg:flex">
+            {PRIMARY.map((l) => {
+              const on = isActive(path, l.href);
+              return (
+                <li key={l.href}>
+                  <Link
+                    href={l.href}
+                    aria-current={on ? 'page' : undefined}
+                    className={`relative flex h-[var(--nav-h)] items-center px-3 text-[13.5px] font-semibold
+                                transition-colors duration-fast
+                                ${on ? 'text-ink' : 'text-ink-3 hover:text-ink'}`}
+                  >
+                    {l.label}
+                    {l.premium && !premium && (
+                      <LockIcon className="ml-1.5 h-3 w-3 text-ink-4" />
+                    )}
+                    <span
+                      className={`absolute inset-x-2 bottom-0 h-[3px] rounded-t-sm bg-brand transition-transform
+                                  duration-fast ease-out ${on ? 'scale-x-100' : 'scale-x-0'}`}
+                      aria-hidden
+                    />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* status */}
+          <div className="ml-auto flex items-center gap-2 lg:ml-0">
+            {round && (
+              <span className="hidden items-center gap-2 rounded-sm border border-line bg-surface px-2.5 py-1.5 xl:inline-flex">
+                <span className="label">Kolo</span>
+                <span className="statmono text-[13px] text-ink">{round.number}</span>
+                {deadline && (
+                  <>
+                    <span className="h-3 w-px bg-line-2" aria-hidden />
+                    <span className="font-mono text-[11px] text-ink-3">
+                      {deadline === 'zakljucano' ? 'zakljucano' : `jos ${deadline}`}
+                    </span>
+                  </>
+                )}
+              </span>
+            )}
+
+            {email ? (
+              <>
+                {premium ? (
+                  <Link
+                    href="/profil"
+                    className="chip-brand hidden sm:inline-flex"
+                    title="Tvoj aktivan paket"
+                  >
+                    {tier}
+                  </Link>
+                ) : (
+                  <button onClick={() => setCodeOpen(true)} className="btn-ghost btn-sm hidden sm:inline-flex">
+                    Imam kod
+                  </button>
+                )}
+                <Link
+                  href="/profil"
+                  aria-label="Profil"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-line-2
+                             bg-elev font-mono text-[12px] font-bold uppercase text-ink-2
+                             transition-colors duration-fast hover:border-brand hover:text-ink"
+                >
+                  {(username ?? email)[0]}
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link href="/prijava" className="hidden text-[13.5px] font-semibold text-ink-3 hover:text-ink sm:block">
+                  Prijava
+                </Link>
+                <Link href="/prijava?reg=1" className="btn-primary btn-sm">
+                  Napravi nalog
+                </Link>
+              </>
+            )}
+
+            <button
+              onClick={() => setOpen((v) => !v)}
+              aria-label={open ? 'Zatvori meni' : 'Otvori meni'}
+              aria-expanded={open}
+              aria-controls="meni"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-sm border border-line
+                         text-ink transition-colors duration-fast hover:bg-elev lg:hidden"
             >
-              {l.label}
-            </Link>
-          ))}
+              <BurgerIcon open={open} />
+            </button>
+          </div>
+        </nav>
+      </header>
+
+      {/* -------------------- panel za telefon -------------------- */}
+      {open && (
+        <div id="meni" className="fixed inset-0 z-40 lg:hidden">
+          <button
+            aria-label="Zatvori meni"
+            tabIndex={-1}
+            onClick={() => setOpen(false)}
+            className="absolute inset-0 animate-fade bg-black/70 backdrop-blur-sm"
+          />
+          <div className="absolute inset-x-0 top-[var(--nav-h)] max-h-[calc(100dvh-var(--nav-h))] animate-rise
+                          overflow-y-auto border-b border-line bg-bg pb-8 shadow-pop">
+            <nav aria-label="Meni" className="page pt-3">
+              <p className="label py-3">Analiza</p>
+              <ul className="divide-y divide-line border-y border-line">
+                {PRIMARY.map((l) => {
+                  const on = isActive(path, l.href);
+                  return (
+                    <li key={l.href}>
+                      <Link
+                        href={l.href}
+                        aria-current={on ? 'page' : undefined}
+                        className={`flex min-h-[62px] items-center gap-4 py-3 transition-colors duration-fast
+                                    ${on ? 'rule-brand -mx-4 px-4 bg-elev' : ''}`}
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-center gap-2 font-display text-[16px] font-extrabold uppercase tracking-tight">
+                            {l.label}
+                            {l.premium && !premium && <LockIcon className="h-3.5 w-3.5 text-ink-4" />}
+                          </span>
+                          <span className="mt-0.5 block text-[12.5px] text-ink-3">{l.desc}</span>
+                        </span>
+                        <ChevronIcon />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+
+              <p className="label py-3 pt-6">Nalog</p>
+              {email ? (
+                <div className="panel p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-[14px] font-semibold">{username ?? email}</p>
+                      <p className="truncate text-[12px] text-ink-3">{email}</p>
+                    </div>
+                    <span className={premium ? 'chip-brand' : 'chip'}>{tier}</span>
+                  </div>
+
+                  <div className="mt-4 grid gap-2">
+                    {ACCOUNT.map((l) => (
+                      <Link key={l.href} href={l.href} className="btn-ghost btn-md w-full">
+                        {l.label}
+                      </Link>
+                    ))}
+                    {!premium && (
+                      <button
+                        onClick={() => {
+                          setOpen(false);
+                          setCodeOpen(true);
+                        }}
+                        className="btn-quiet btn-md w-full"
+                      >
+                        Imam pristupni kod
+                      </button>
+                    )}
+                    <button onClick={signOut} className="btn-quiet btn-md w-full">
+                      Odjava
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="panel p-4">
+                  <p className="text-small text-ink-3">
+                    Napravi besplatan nalog da sacuvas postavu, igras kolo i pratis svoju tacnost.
+                  </p>
+                  <div className="mt-4 grid gap-2">
+                    <Link href="/prijava?reg=1" className="btn-primary btn-md w-full">
+                      Napravi nalog
+                    </Link>
+                    <Link href="/prijava" className="btn-ghost btn-md w-full">
+                      Prijavi se
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </nav>
+          </div>
         </div>
       )}
-    </header>
+
+      <CodeDialog open={codeOpen} onClose={() => setCodeOpen(false)} />
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+
+function BurgerIcon({ open }: { open: boolean }) {
+  return (
+    <span className="relative block h-[14px] w-[18px]" aria-hidden>
+      <span
+        className={`absolute left-0 block h-[2px] w-full bg-current transition-all duration-fast ease-out
+                    ${open ? 'top-1.5 rotate-45' : 'top-0'}`}
+      />
+      <span
+        className={`absolute left-0 top-1.5 block h-[2px] w-full bg-current transition-opacity duration-fast
+                    ${open ? 'opacity-0' : 'opacity-100'}`}
+      />
+      <span
+        className={`absolute left-0 block h-[2px] w-full bg-current transition-all duration-fast ease-out
+                    ${open ? 'top-1.5 -rotate-45' : 'top-3'}`}
+      />
+    </span>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-4 w-4 shrink-0 text-ink-4" fill="none" aria-hidden>
+      <path d="m6 3 5 5-5 5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function LockIcon({ className = 'h-3 w-3' }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" className={className} fill="none" aria-hidden>
+      <rect x="3.5" y="7" width="9" height="6.5" rx="1" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M5.75 7V5.25a2.25 2.25 0 0 1 4.5 0V7" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
   );
 }

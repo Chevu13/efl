@@ -1,0 +1,135 @@
+import CheckoutButton from './CheckoutButton';
+import { Chip } from '../ui/primitives';
+import { PLANS, priceLabel } from '@/lib/config';
+import { TIER_RANK, type Tier } from '@/lib/types';
+
+const FREE_FEATURES = [
+  'Jedan izbor kola sa obrazlozenjem',
+  'Raspored i tezina protivnika',
+  'Izazov kola i sezonska lista',
+  'Osnovni pregled baze igraca'
+];
+
+/**
+ * Paketi.
+ *
+ * Nije mreza od cetiri identicne kartice — besplatan paket stoji kao
+ * osnova, a placeni kao stepenice iznad njega. Aktivan paket se
+ * prepoznaje po traci i po reci, ne samo po boji ivice.
+ */
+export default function PricingTable({
+  tier,
+  loggedIn,
+  paypalReady
+}: {
+  tier: Tier;
+  loggedIn: boolean;
+  paypalReady: boolean;
+}) {
+  return (
+    <div>
+      {/* besplatno — osnova, ne konkurencija placenim paketima */}
+      <div className="panel flex flex-wrap items-center justify-between gap-6 p-5">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <span className="font-display text-[18px] font-extrabold uppercase tracking-tight">
+              Besplatno
+            </span>
+            {tier === 'FREE' && <Chip tone="brand">Tvoj paket</Chip>}
+          </div>
+          <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-1.5">
+            {FREE_FEATURES.map((f) => (
+              <li key={f} className="flex items-center gap-2 text-[12.5px] text-ink-3">
+                <span className="h-[3px] w-2.5 shrink-0 bg-ink-4" aria-hidden />
+                {f}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="stat text-[30px] leading-none text-ink-3">€0</div>
+      </div>
+
+      {/* placeni paketi */}
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        {PLANS.map((plan) => {
+          const active = plan.tier === tier;
+          const owned = TIER_RANK[tier] >= TIER_RANK[plan.tier];
+
+          return (
+            <article
+              key={plan.code}
+              className={`relative flex flex-col overflow-hidden rounded-md border bg-surface
+                          ${active
+                            ? 'border-brand'
+                            : plan.featured
+                              ? 'border-brand/40'
+                              : 'border-line'}`}
+            >
+              {(plan.featured || active) && (
+                <div
+                  className={`px-5 py-1.5 text-center font-mono text-[10px] font-bold uppercase
+                              tracking-[0.16em] ${
+                                active ? 'bg-brand text-black' : 'bg-brand/15 text-brand-400'
+                              }`}
+                >
+                  {active ? 'Tvoj aktivan paket' : 'Najcesci izbor'}
+                </div>
+              )}
+
+              <div className="flex flex-1 flex-col p-5">
+                <div className="flex items-baseline justify-between gap-3">
+                  <h3 className="text-[22px] uppercase">{plan.name}</h3>
+                  <span className="chip">{plan.code}</span>
+                </div>
+
+                <div className="mt-4 flex items-end gap-1.5">
+                  <span className="stat text-[44px] leading-none">
+                    {priceLabel(plan.priceCents)}
+                  </span>
+                  <span className="pb-1 text-[12px] text-ink-3">/ {plan.days} dana</span>
+                </div>
+
+                <p className="mt-3 border-b border-line pb-4 text-small text-ink-3">{plan.pitch}</p>
+
+                <ul className="mt-4 flex-1 space-y-2.5">
+                  {plan.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2.5 text-[13px] text-ink-2">
+                      <span className="mt-[7px] h-[3px] w-3 shrink-0 bg-brand" aria-hidden />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="mt-6">
+                  {owned ? (
+                    <div className="flex h-11 items-center justify-center rounded-sm border border-line
+                                    bg-elev text-[13px] font-semibold text-ink-3">
+                      {active ? 'Vec je aktivan' : 'Ukljuceno u tvoj paket'}
+                    </div>
+                  ) : paypalReady ? (
+                    <CheckoutButton
+                      plan={plan.code}
+                      loggedIn={loggedIn}
+                      label={`Uzmi ${plan.name}`}
+                      variant={plan.featured ? 'primary' : 'ghost'}
+                    />
+                  ) : (
+                    <div className="rounded-sm border border-line bg-elev px-3 py-3 text-center text-[12px] text-ink-3">
+                      Placanje jos nije ukljuceno. Paket se za sada otkljucava
+                      pristupnim kodom.
+                    </div>
+                  )}
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+
+      <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-4">
+        Placanje preko PayPal-a · jedna uplata otkljucava paket na {PLANS[0].days} dana ·
+        bez automatske obnove
+      </p>
+    </div>
+  );
+}

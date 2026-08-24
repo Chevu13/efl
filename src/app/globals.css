@@ -2,31 +2,331 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ------------------------------------------------------------------
+   PROXIMA NOVA
+   Zvanično brend pismo. Licencirane webfont fajlove stavi u
+   public/fonts/ i otkomentariši blok ispod — cela aplikacija ga
+   preuzima automatski jer stoji prvi u font stack-u.
+   Do tada se koristi Barlow / Barlow Condensed (next/font).
+------------------------------------------------------------------- */
+/*
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("/fonts/proximanova-regular.woff2") format("woff2");
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("/fonts/proximanova-semibold.woff2") format("woff2");
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("/fonts/proximanova-bold.woff2") format("woff2");
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: "Proxima Nova";
+  src: url("/fonts/proximanova-extrabold.woff2") format("woff2");
+  font-weight: 800; font-style: normal; font-display: swap;
+}
+*/
+
 @layer base {
-  html { scroll-behavior: smooth; }
-  body { @apply bg-bg text-ink font-sans antialiased; }
-  ::selection { @apply bg-brand text-bg; }
-  *:focus-visible { @apply outline-none ring-2 ring-brand ring-offset-2 ring-offset-bg; }
+  :root {
+    --efl-orange: #df6320;
+    --page-x: 1rem;
+    --nav-h: 60px;
+  }
+
+  @media (min-width: 768px) {
+    :root {
+      --page-x: 1.75rem;
+      --nav-h: 68px;
+    }
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-bg font-sans text-ink antialiased;
+  }
+
+  ::selection {
+    background: var(--efl-orange);
+    color: #000;
+  }
+
+  /* Fokus se uvek vidi — nikad outline:none bez zamene. */
+  :focus-visible {
+    @apply outline-none;
+    box-shadow: 0 0 0 2px #08090b, 0 0 0 4px var(--efl-orange);
+    border-radius: 4px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display font-extrabold tracking-tight;
+    text-wrap: balance;
+  }
+
+  /* Brojevi se uvek poravnavaju u kolonama. */
+  table,
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #08090b;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #23262b;
+    border-radius: 99px;
+    border: 2px solid #08090b;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #31353c;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
 
 @layer components {
-  .card { @apply bg-surface border border-line rounded-card; }
-  .btn { @apply inline-flex items-center justify-center gap-2 h-11 px-5 rounded-card
-          text-sm font-semibold transition-all active:translate-y-0 hover:-translate-y-0.5
-          disabled:opacity-40 disabled:pointer-events-none; }
-  .btn-primary { @apply btn bg-brand text-bg hover:bg-[#FF7438]; }
-  .btn-data { @apply btn bg-data text-[#06121C] hover:bg-[#54C4FF]; }
-  .btn-ghost { @apply btn border border-line text-muted hover:text-ink hover:bg-elev; }
-  .field { @apply w-full h-11 px-3.5 bg-bg border border-line rounded-card text-sm
-           placeholder:text-muted focus:border-brand; }
-  .chip { @apply inline-flex items-center gap-1.5 font-mono text-[10.5px] tracking-[0.12em]
-          uppercase px-2 py-1 rounded-chip; }
-  .stat { @apply font-mono tabular-nums font-bold tracking-tight; }
-  .label { @apply font-mono text-[9.5px] tracking-[0.14em] text-muted uppercase; }
-  .eyebrow { @apply font-mono text-[11px] tracking-[0.18em] text-muted uppercase
-             flex items-center gap-3 before:content-[''] before:w-5 before:h-0.5 before:bg-brand; }
+  /* --------------------------------------------------------------
+     LAYOUT
+  --------------------------------------------------------------- */
+  .page {
+    @apply mx-auto w-full max-w-page px-[var(--page-x)];
+  }
+
+  /* Sekcija koja se prostire preko cele širine ekrana, a sadržaj
+     ostaje u koloni. Osnovni ritam stranice — nije sve kartica. */
+  .bleed {
+    @apply relative -mx-[var(--page-x)] px-[var(--page-x)];
+  }
+
+  /* --------------------------------------------------------------
+     POVRŠINE
+  --------------------------------------------------------------- */
+  .panel {
+    @apply rounded-md border border-line bg-surface;
+  }
+  .panel-flat {
+    @apply border-y border-line bg-surface;
+  }
+  .panel-head {
+    @apply flex items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5;
+  }
+
+  /* --------------------------------------------------------------
+     DUGMAD
+  --------------------------------------------------------------- */
+  .btn {
+    @apply inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-sm
+      font-semibold leading-none transition-all duration-fast ease-out
+      disabled:pointer-events-none disabled:opacity-40;
+  }
+  .btn-sm {
+    @apply h-9 px-3.5 text-[13px];
+  }
+  .btn-md {
+    @apply h-11 px-5 text-[14px];
+  }
+  .btn-lg {
+    @apply h-[52px] px-7 text-[15px];
+  }
+
+  .btn-primary {
+    @apply btn bg-brand text-black hover:bg-brand-400 active:bg-brand-600;
+  }
+  .btn-solid {
+    @apply btn bg-ink text-black hover:bg-ink-2 active:bg-ink-3;
+  }
+  .btn-ghost {
+    @apply btn border border-line-2 bg-transparent text-ink-2 hover:border-ink-4 hover:bg-elev
+      hover:text-ink active:bg-surface;
+  }
+  .btn-quiet {
+    @apply btn bg-elev text-ink-2 hover:bg-raise hover:text-ink;
+  }
+
+  /* --------------------------------------------------------------
+     POLJA
+  --------------------------------------------------------------- */
+  .field {
+    @apply h-11 w-full rounded-sm border border-line bg-sunken px-3.5 text-[14px] text-ink
+      transition-colors duration-fast placeholder:text-ink-4 hover:border-line-2 focus:border-brand;
+  }
+  .field-label {
+    @apply mb-1.5 block text-[12px] font-semibold text-ink-2;
+  }
+
+  /* --------------------------------------------------------------
+     TIPOGRAFIJA / SITNI ELEMENTI
+  --------------------------------------------------------------- */
+  .label {
+    @apply font-mono text-label font-medium uppercase tracking-[0.14em] text-ink-3;
+  }
+  .eyebrow {
+    @apply inline-flex items-center gap-2.5 font-mono text-[11px] font-medium uppercase
+      tracking-[0.18em] text-ink-3;
+  }
+  .eyebrow::before {
+    content: "";
+    @apply block h-[3px] w-6 shrink-0 bg-brand;
+  }
+
+  .stat {
+    @apply font-display font-extrabold tabular-nums tracking-tight;
+  }
+  .statmono {
+    @apply font-mono font-bold tabular-nums tracking-tight;
+  }
+
+  .chip {
+    @apply inline-flex h-[22px] items-center gap-1.5 rounded-xs border border-line bg-elev px-2
+      font-mono text-[10.5px] font-semibold uppercase tracking-[0.1em] text-ink-2;
+  }
+  .chip-brand {
+    @apply chip border-brand/45 bg-brand/[.14] text-brand-400;
+  }
+  .chip-solid {
+    @apply chip border-brand bg-brand text-black;
+  }
+
+  /* --------------------------------------------------------------
+     PORTRETI U DUGIM LISTAMA
+     Klase umesto ponovljenih niski — na spisku od tri stotine igraca
+     to je razlika od stotina kilobajta u HTML-u.
+  --------------------------------------------------------------- */
+  .avatar {
+    @apply relative grid shrink-0 place-items-center overflow-hidden rounded-full border
+      border-line-2 bg-elev;
+    background-image: radial-gradient(
+      115% 100% at 50% 0%,
+      hsl(var(--hue, 22) 38% 20% / 0.9) 0%,
+      transparent 72%
+    );
+  }
+  .avatar > img {
+    @apply absolute inset-0 h-full w-full object-cover;
+    object-position: center top;
+    transform: scale(1.75) translateY(15%);
+  }
+  .avatar > i {
+    @apply pointer-events-none absolute inset-0 opacity-70;
+    background-image: repeating-linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.055) 0 1px,
+      transparent 1px 8px
+    );
+  }
+  .avatar > b {
+    @apply font-display font-extrabold text-white/55;
+  }
+
+  .postag {
+    @apply grid h-[18px] w-[18px] shrink-0 place-items-center rounded-xs border border-line-2
+      bg-elev font-mono text-[10px] font-bold text-ink-2;
+  }
+
+  /* --------------------------------------------------------------
+     TABELE
+  --------------------------------------------------------------- */
+  .tbl {
+    @apply w-full border-collapse text-left;
+  }
+  .tbl thead th {
+    @apply whitespace-nowrap border-b border-line bg-surface px-3 py-2.5 font-mono text-label
+      font-medium uppercase tracking-[0.12em] text-ink-3;
+  }
+  .tbl tbody td {
+    @apply border-b border-line/70 px-3 py-2.5 align-middle text-[13.5px];
+  }
+  .tbl tbody tr {
+    @apply transition-colors duration-fast;
+  }
+  .tbl tbody tr:hover {
+    @apply bg-elev;
+  }
+  .tbl .num {
+    @apply text-right font-mono tabular-nums;
+  }
+
+  /* --------------------------------------------------------------
+     STANJA
+  --------------------------------------------------------------- */
+  .skel {
+    @apply animate-shimmer rounded-xs bg-elev;
+    background-image: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.06) 50%,
+      transparent 100%
+    );
+    background-size: 200% 100%;
+  }
+
+  .link {
+    @apply text-ink underline decoration-brand decoration-2 underline-offset-4
+      transition-colors duration-fast hover:text-brand-400;
+  }
 }
 
-/* Trajectory Grid — brend motiv */
-.tgrid { background-image: repeating-linear-gradient(to bottom,
-         rgba(255,255,255,.04) 0 1px, transparent 1px 40px); }
+@layer utilities {
+  /* Šrafura — brend detalj, koristi se štedljivo. */
+  .hatch {
+    background-image: repeating-linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.055) 0 1px,
+      transparent 1px 8px
+    );
+  }
+
+  /* Mreža podataka iza statističkih površina. */
+  .datagrid {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+    background-size: 56px 56px;
+  }
+
+  /* Tanka narandžasta ivica levo — obeležava „ovo je naš zaključak”. */
+  .rule-brand {
+    box-shadow: inset 3px 0 0 0 #df6320;
+  }
+
+  .mask-fade-b {
+    -webkit-mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 55%, transparent 100%);
+  }
+  .mask-fade-r {
+    -webkit-mask-image: linear-gradient(to right, #000 80%, transparent 100%);
+    mask-image: linear-gradient(to right, #000 80%, transparent 100%);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+}

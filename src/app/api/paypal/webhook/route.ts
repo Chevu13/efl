@@ -1,106 +1,152 @@
 import { NextResponse } from 'next/server';
-import { createAdminClient } from '@/lib/supabase/server';
-import type { Tier } from '@/lib/types';
+import { alreadyProcessed, grantEntitlement, revokeEntitlement } from '@/lib/entitlements';
+import { planForAmount } from '@/lib/config';
+import { decodeRef, verifyWebhook, webhookConfigured } from '@/lib/paypal/client';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * PayPal webhook.
  *
  * Podesi u PayPal Dashboard -> Apps & Credentials -> Webhooks:
- *   URL:      https://tvoj-sajt.vercel.app/api/paypal/webhook
- *   Dogadjaj: PAYMENT.CAPTURE.COMPLETED  (i BILLING.SUBSCRIPTION.ACTIVATED za pretplate)
+ *   URL:      https://tvoj-sajt/api/paypal/webhook
+ *   Dogadjaji: PAYMENT.CAPTURE.COMPLETED
+ *              PAYMENT.CAPTURE.DENIED
+ *              PAYMENT.CAPTURE.REFUNDED
+ *              PAYMENT.CAPTURE.REVERSED
  *
- * Kupac pri placanju mora da nosi svoj user id — prosledi ga kao custom_id
- * kada praviš narudžbinu, pa ga ovde čitamo i vezujemo uplatu za nalog.
+ * Tri stvari koje ova ruta mora da radi ispravno:
+ *
+ * 1. Potpis se proverava kod PayPal-a. Bez toga bi svako mogao da posalje
+ *    lazan dogadjaj na ovu adresu i sam sebi ukljuci paket.
+ * 2. Obrada je idempotentna. PayPal ponavlja isporuku dok ne dobije 200,
+ *    pa isti dogadjaj stize vise puta — pravo se dodeljuje samo jednom.
+ * 3. Odgovor je 200 i za dogadjaje koje ne obradjujemo, da PayPal ne bi
+ *    beskonacno ponavljao ono sto nas ne zanima.
  */
 
-const API = () =>
-  process.env.PAYPAL_ENV === 'live'
-    ? 'https://api-m.paypal.com'
-    : 'https://api-m.sandbox.paypal.com';
+type WebhookEvent = {
+  id?: string;
+  event_type?: string;
+  resource?: {
+    id?: string;
+    custom_id?: string;
+    amount?: { value?: string; currency_code?: string };
+    links?: { href?: string; rel?: string }[];
+    supplementary_data?: { related_ids?: { order_id?: string; capture_id?: string } };
+  };
+};
 
-async function token() {
-  const auth = Buffer.from(
-    `${process.env.PAYPAL_CLIENT_ID}:${process.env.PAYPAL_SECRET}`
-  ).toString('base64');
-  const r = await fetch(`${API()}/v1/oauth2/token`, {
-    method: 'POST',
-    headers: { Authorization: `Basic ${auth}`, 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: 'grant_type=client_credentials'
-  });
-  const j = await r.json();
-  return j.access_token as string;
-}
-
-/** Bez ove provere bilo ko može da pošalje lažnu uplatu na ovu adresu. */
-async function verifikuj(headers: Headers, body: unknown) {
-  const r = await fetch(`${API()}/v1/notifications/verify-webhook-signature`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${await token()}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      auth_algo: headers.get('paypal-auth-algo'),
-      cert_url: headers.get('paypal-cert-url'),
-      transmission_id: headers.get('paypal-transmission-id'),
-      transmission_sig: headers.get('paypal-transmission-sig'),
-      transmission_time: headers.get('paypal-transmission-time'),
-      webhook_id: process.env.PAYPAL_WEBHOOK_ID,
-      webhook_event: body
-    })
-  });
-  const j = await r.json();
-  return j.verification_status === 'SUCCESS';
-}
-
-/** Iznos -> paket. Podesi po svojim cenama. */
-function tierZaIznos(eur: number): { tier: Tier; days: number } {
-  if (eur >= 25) return { tier: 'ULTRA', days: 30 };
-  if (eur >= 15) return { tier: 'PRO', days: 30 };
-  return { tier: 'PLUS', days: 30 };
+/**
+ * Kod povracaja `resource.id` je id povracaja, a ne naplate. Id naplate
+ * — po kojem se pravo i dodeljuje — stoji u vezanim podacima ili u
+ * `links` vezi "up".
+ */
+function captureIdOf(res: NonNullable<WebhookEvent['resource']>, eventType: string) {
+  if (eventType !== 'PAYMENT.CAPTURE.REFUNDED') return res.id ?? null;
+  const related = res.supplementary_data?.related_ids?.capture_id;
+  if (related) return related;
+  const up = res.links?.find((l) => l.rel === 'up')?.href;
+  return up?.split('/captures/')[1]?.split(/[/?]/)[0] ?? null;
 }
 
 export async function POST(req: Request) {
-  const body = await req.json();
+  const raw = await req.text();
 
-  if (process.env.PAYPAL_WEBHOOK_ID) {
-    const ok = await verifikuj(req.headers, body);
-    if (!ok) return NextResponse.json({ error: 'Potpis nije ispravan' }, { status: 401 });
+  let event: WebhookEvent;
+  try {
+    event = JSON.parse(raw) as WebhookEvent;
+  } catch {
+    return NextResponse.json({ error: 'Neispravan sadrzaj.' }, { status: 400 });
   }
 
-  if (body.event_type !== 'PAYMENT.CAPTURE.COMPLETED') {
-    return NextResponse.json({ ignored: body.event_type });
+  /* ---------------- 1. potpis ---------------- */
+  if (!webhookConfigured()) {
+    /* Bez PAYPAL_WEBHOOK_ID nema sta da se proveri. U razvoju se to sme
+       privremeno preskociti, u produkciji nikad. */
+    const allowUnverified =
+      process.env.PAYPAL_ENV !== 'live' &&
+      process.env.PAYPAL_ALLOW_UNVERIFIED_WEBHOOKS === 'true';
+
+    if (!allowUnverified) {
+      console.error('[paypal/webhook] nedostaje PAYPAL_WEBHOOK_ID — dogadjaj odbijen');
+      return NextResponse.json({ error: 'Webhook nije podesen.' }, { status: 401 });
+    }
+    console.warn('[paypal/webhook] provera potpisa preskocena (samo sandbox)');
+  } else {
+    let ok = false;
+    try {
+      ok = await verifyWebhook(req.headers, event);
+    } catch (e) {
+      console.error('[paypal/webhook] provera potpisa nije uspela:', (e as Error).message);
+      /* 500 da PayPal pokusa ponovo — mozda je nas problem, ne njihov. */
+      return NextResponse.json({ error: 'Provera potpisa nije uspela.' }, { status: 500 });
+    }
+    if (!ok) {
+      console.error('[paypal/webhook] potpis nije ispravan', event.id);
+      return NextResponse.json({ error: 'Potpis nije ispravan.' }, { status: 401 });
+    }
   }
 
-  const res = body.resource ?? {};
-  const userId: string | undefined = res.custom_id;
-  const iznos = Number(res.amount?.value ?? 0);
-  const paypalId: string = res.id;
-
-  if (!userId) {
-    // Uplata bez naloga — upiši kao neraspoređenu, rešavaš ručno.
-    return NextResponse.json({ warn: 'Nema custom_id, uplata nije vezana za nalog.' });
+  /* ---------------- 2. duplikat ---------------- */
+  if (event.id && (await alreadyProcessed(event.id, event.event_type ?? '?'))) {
+    return NextResponse.json({ ok: true, duplikat: true });
   }
 
-  const sb = createAdminClient();
+  const res = event.resource ?? {};
+  const paypalId = res.id;
 
-  // Ista uplata može stići dva puta — ne duplirati pretplatu.
-  const { data: postoji } = await sb
-    .from('subscriptions')
-    .select('id')
-    .eq('paypal_id', paypalId)
-    .maybeSingle();
-  if (postoji) return NextResponse.json({ ok: true, duplikat: true });
+  /* ---------------- 3. obrada ---------------- */
+  switch (event.event_type) {
+    case 'PAYMENT.CAPTURE.COMPLETED': {
+      if (!paypalId) return NextResponse.json({ ok: true, ignored: 'bez id-ja naplate' });
 
-  const { tier, days } = tierZaIznos(iznos);
-  const ends = new Date(Date.now() + days * 864e5).toISOString();
+      const { userId, plan } = decodeRef(res.custom_id);
+      const amount = Number(res.amount?.value ?? 0);
 
-  const { error } = await sb.from('subscriptions').insert({
-    user_id: userId,
-    tier,
-    ends_at: ends,
-    source: 'paypal',
-    paypal_id: paypalId,
-    note: `${iznos} ${res.amount?.currency_code ?? 'EUR'}`
-  });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (!userId) {
+        /* Uplata bez oznake naloga — resava se rucno. Vracamo 200 da
+           PayPal prestane da ponavlja; zapis ostaje u logu. */
+        console.warn('[paypal/webhook] uplata bez custom_id:', paypalId, amount);
+        return NextResponse.json({ ok: true, warn: 'Uplata nije vezana za nalog.' });
+      }
 
-  return NextResponse.json({ ok: true, tier });
+      /* Ako oznake paketa nema (stara narudzbina), izvedi ga iz iznosa. */
+      const planCode = plan ?? planForAmount(amount).code;
+
+      const granted = await grantEntitlement({
+        userId,
+        plan: planCode,
+        paypalId,
+        amount,
+        currency: res.amount?.currency_code,
+        orderId: res.supplementary_data?.related_ids?.order_id ?? null
+      });
+
+      if (!granted.ok) {
+        console.error('[paypal/webhook] dodela nije uspela:', granted.error);
+        /* 500 -> PayPal ce pokusati ponovo, pa uplata nece propasti. */
+        return NextResponse.json({ error: granted.error }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        ok: true,
+        tier: granted.tier,
+        duplikat: granted.duplicate
+      });
+    }
+
+    case 'PAYMENT.CAPTURE.REFUNDED':
+    case 'PAYMENT.CAPTURE.REVERSED':
+    case 'PAYMENT.CAPTURE.DENIED': {
+      const captureId = captureIdOf(res, event.event_type);
+      if (captureId) {
+        await revokeEntitlement(captureId, event.event_type.split('.').pop()!.toLowerCase());
+      }
+      return NextResponse.json({ ok: true, povuceno: !!captureId });
+    }
+
+    default:
+      return NextResponse.json({ ok: true, ignored: event.event_type });
+  }
 }
