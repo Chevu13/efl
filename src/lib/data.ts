@@ -4,6 +4,7 @@ import * as mock from './mock';
 import { TIER_RANK } from './types';
 import type {
   ChallengeLine,
+  Coach,
   Fixture,
   LeaderboardRow,
   Player,
@@ -150,6 +151,18 @@ export const getLeaderboard = cache(async (): Promise<LeaderboardRow[]> => {
     .limit(10);
   if (error || empty(data)) return fromMock(mock.mockLeaderboard());
   return data as LeaderboardRow[];
+});
+
+/** Treneri kola. Ako tabele nema, izvode se iz timova i rasporeda. */
+export const getCoaches = cache(async (roundId: number): Promise<Coach[]> => {
+  const sb = createClient();
+  const { data, error } = await sb.from('coaches').select('*').eq('round_id', roundId);
+
+  if (error || empty(data)) {
+    const [teams, fixtures] = await Promise.all([getTeams(), getFixtures(roundId)]);
+    return fromMock(mock.generateCoaches(teams, fixtures, roundId));
+  }
+  return data as Coach[];
 });
 
 /* ------------------------------------------------------------------ */

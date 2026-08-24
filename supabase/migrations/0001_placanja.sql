@@ -140,3 +140,30 @@ commit;
 --  order by ordinal_position;
 --
 -- select public.moj_tier(auth.uid());
+
+-- ===================================================================
+-- Treneri (opciono, ali preporuceno)
+--
+-- Po zvanicnim pravilima trener je jedanaesti izbor u postavi: kosta
+-- kredite i nosi pune poene. Dok ova tabela ne postoji, aplikacija
+-- izvodi jednog trenera po timu iz rasporeda i oznacava ga imenom tima.
+-- Popuni je pravim imenima i cenama kad budes hteo.
+-- ===================================================================
+
+create table if not exists public.coaches (
+  id         text primary key,
+  round_id   bigint,
+  name       text not null,
+  team_code  text not null,
+  price      numeric(5,1) not null default 5,
+  projected  numeric(5,1) not null default 10
+);
+
+create index if not exists coaches_round_idx on public.coaches (round_id);
+
+alter table public.coaches enable row level security;
+
+drop policy if exists "treneri su javni" on public.coaches;
+create policy "treneri su javni"
+  on public.coaches for select
+  using (true);

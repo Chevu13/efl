@@ -39,9 +39,14 @@ type Lite = {
 
 type Reason = { label: string; detail: string };
 
+type Role = 'starter' | 'sixth' | 'bench';
+
 type WireSwap =
   | {
       locked: false;
+      role: Role;
+      roleLabel: string;
+      isCaptain: boolean;
       position: Position | null;
       priceDelta: number;
       projDelta: number;
@@ -50,7 +55,14 @@ type WireSwap =
       out: Lite;
       in: Lite;
     }
-  | { locked: true; position: Position | null; priceDelta: number; projDelta: number };
+  | {
+      locked: true;
+      role: Role;
+      roleLabel: string;
+      position: Position | null;
+      priceDelta: number;
+      projDelta: number;
+    };
 
 type Result = {
   tier: Tier;
@@ -65,6 +77,7 @@ type Result = {
   lockedCount: number;
   needTier: Tier;
   violations: string[];
+  captainMove: { from: Lite; to: Lite; gain: number } | null;
   swaps: WireSwap[];
 };
 
@@ -84,15 +97,18 @@ export default function OptimizerView({
   teams: Record<string, Team>;
   tier: Tier;
 }) {
-  const { ids, ready } = useLineup(roundId);
+  const { state, ready } = useLineup(roundId);
   const [result, setResult] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [applied, setApplied] = useState(false);
   const started = useRef(false);
 
+  const filled =
+    state.starters.length + (state.sixth ? 1 : 0) + state.bench.length;
+
   const run = useCallback(async () => {
-    if (!ids.length) return;
+    if (!filled) return;
     setBusy(true);
     setError('');
     setApplied(false);
@@ -101,7 +117,7 @@ export default function OptimizerView({
       const res = await fetch('/api/optimizator', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ roundId, ids })
+        body: JSON.stringify({ roundId, lineup: state })
       });
       const out = (await res.json()) as Result & { error?: string };
       if (!res.ok) {
@@ -114,25 +130,25 @@ export default function OptimizerView({
     } finally {
       setBusy(false);
     }
-  }, [ids, roundId]);
+  }, [state, filled, roundId]);
 
   /* Prvi racun krece sam — korisnik je dosao ovde bas zbog toga. */
   useEffect(() => {
-    if (ready && ids.length && !started.current) {
+    if (ready && filled && !started.current) {
       started.current = true;
       void run();
     }
-  }, [ready, ids.length, run]);
+  }, [ready, filled, run]);
 
   if (!ready) {
     return <div className="skel h-72 w-full rounded-md" aria-label="Ucitavanje" />;
   }
 
-  if (!ids.length) {
+  if (!filled) {
     return (
       <EmptyState
         title="Nema postave za optimizaciju"
-        desc={`Sastavi tim od ${LINEUP.size} igraca u okviru ${LINEUP.budget} kredita, pa se vrati ovde. Optimizator ce naci zamene koje donose vise poena za isti novac.`}
+        desc={`Sastavi kadar od ${LINEUP.squad.G} beka, ${LINEUP.squad.F} krila i ${LINEUP.squad.C} centra uz trenera, pa se vrati ovde. Optimizator trazi zamene koje donose vise bodova za isti novac.`}
         action={
           <Link href="/igra" className="btn-primary btn-md">
             Sastavi postavu
@@ -158,10 +174,60 @@ export default function OptimizerView({
         </Alert>
       )}
 
-      {result && result.totalFound === 0 && (
+      {/* Promena kapitena ne kosta ni kredit — zato stoji iznad zamena. */}
+      {result?.captainMove && (
+        <section className="overflow-hidden rounded-md border border-brand/45 bg-brand/[.07]">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-brand/25 px-4 py-2.5">
+            <span className="flex items-center gap-2.5">
+              <Chip tone="brand">Kapitenska traka</Chip>
+              <span className="text-[13px] font-semibold text-ink">
+                Promena ne kosta nijedan kredit
+              </span>
+            </span>
+            <Delta value={result.captainMove.gain} unit="BOD" size="md" />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-4 px-4 py-4">
+            <div className="flex items-center gap-3">
+              <PlayerPhoto player={result.captainMove.from} size="md" />
+              <div>
+                <div className="font-display text-[14px] font-extrabold uppercase leading-none text-ink-3">
+                  {result.captainMove.from.short_name}
+                </div>
+                <div className="mt-1 text-[11px] text-ink-4">
+                  sada kapiten · {num(result.captainMove.from.projected)} FP
+                </div>
+              </div>
+            </div>
+
+            <span className="text-[20px] text-brand" aria-hidden>
+              →
+            </span>
+
+            <div className="flex items-center gap-3">
+              <PlayerPhoto player={result.captainMove.to} size="md" ring />
+              <div>
+                <div className="font-display text-[14px] font-extrabold uppercase leading-none">
+                  {result.captainMove.to.short_name}
+                </div>
+                <div className="mt-1 text-[11px] text-ink-3">
+                  predlog · {num(result.captainMove.to.projected)} FP
+                </div>
+              </div>
+            </div>
+
+            <p className="min-w-[200px] flex-1 text-[12.5px] leading-relaxed text-ink-2">
+              Kapiten nosi {LINEUP.captainMultiplier}× poena, pa traka uvek ide
+              najvecoj projekciji u petorci.
+            </p>
+          </div>
+        </section>
+      )}
+
+      {result && result.totalFound === 0 && !result.captainMove && (
         <Alert tone="ok" title="Postava je vec optimalna">
           Za zadati budzet i pravila sastava nema zamene koja donosi vise
-          projektovanih poena. Vrati se posle azuriranja cena.
+          bodova. Vrati se posle azuriranja cena.
         </Alert>
       )}
 
@@ -191,7 +257,7 @@ export default function OptimizerView({
             <TierGate
               need={result.needTier}
               title={`Jos ${result.lockedCount} ${result.lockedCount === 1 ? 'zamena' : 'zamene'} koje donose poene`}
-              desc={`Ukupno poboljsanje od ${signed(result.improvement)} poena racuna sve zamene. Sa paketom ${result.needTier} vidis koje su i zasto rade.`}
+              desc={`Ukupno poboljsanje od ${signed(result.improvement)} bodova racuna sve zamene i promenu kapitena. Sa paketom ${result.needTier} vidis koje su i zasto rade.`}
             />
           )}
         </>
@@ -200,9 +266,11 @@ export default function OptimizerView({
       {result && (
         <p className="text-[11.5px] leading-relaxed text-ink-4">
           Kako radi: optimizator u svakom krugu proba svaku zamenu igrac-za-igraca
-          koja postuje poziciju, budzet od {result.budget} kredita i najvise{' '}
-          {LINEUP.maxPerTeam} igraca iz istog tima, i bira onu sa najvecim dobitkom
-          projektovanih poena. Staje kad vise nema poboljsanja.
+          koja postuje poziciju, kvotu kadra ({LINEUP.squad.G}/{LINEUP.squad.F}/
+          {LINEUP.squad.C}) i budzet od {result.budget} kredita, pa bira onu sa
+          najvecim dobitkom bodova. Racuna se ucinak na mestu u postavi: zamena u
+          petorci vredi punu razliku, na klupi polovinu, a kod kapitena{' '}
+          {LINEUP.captainMultiplier}×. Staje kad vise nema poboljsanja.
         </p>
       )}
     </div>
@@ -232,7 +300,7 @@ function ScoreHeader({
         <div className="grid items-center gap-6 md:grid-cols-[1fr_auto_1fr_auto]">
           {/* trenutno */}
           <div>
-            <div className="label">Trenutna projekcija</div>
+            <div className="label">Trenutno bodova</div>
             <div className="stat mt-2 text-[clamp(38px,7vw,62px)] leading-none text-ink-3">
               {busy && !result ? <span className="skel inline-block h-[0.8em] w-28" /> : num(result?.currentTotal)}
             </div>
@@ -247,7 +315,7 @@ function ScoreHeader({
 
           {/* optimizovano */}
           <div>
-            <div className="label">Optimizovana projekcija</div>
+            <div className="label">Posle optimizacije</div>
             <div
               key={result?.optimizedTotal}
               className="stat mt-2 animate-tickUp text-[clamp(38px,7vw,62px)] leading-none text-brand"
@@ -269,7 +337,7 @@ function ScoreHeader({
             >
               {result ? signed(result.improvement) : '—'}
             </div>
-            <div className="mt-1.5 text-[11.5px] text-ink-4">projektovanih poena</div>
+            <div className="mt-1.5 text-[11.5px] text-ink-4">bodova u kolu</div>
           </div>
         </div>
 
@@ -316,9 +384,10 @@ function SwapRow({
             {String(index + 1).padStart(2, '0')}
           </span>
           <span className="text-[13px] font-semibold text-ink">{swap.headline}</span>
+          <Chip tone={swap.isCaptain ? 'brand' : 'default'}>{swap.roleLabel}</Chip>
         </span>
         <span className="flex items-center gap-3">
-          <Delta value={swap.projDelta} unit="FP" size="md" />
+          <Delta value={swap.projDelta} unit="BOD" size="md" />
           <span className="statmono text-[12px] text-ink-3">
             {swap.priceDelta === 0 ? 'ista cena' : `${signed(swap.priceDelta)} kr`}
           </span>
@@ -457,16 +526,13 @@ function LockedSwap({
           </span>
           <span className="hatch h-10 w-10 rounded-full border border-line bg-elev" aria-hidden />
           <div>
-            <p className="text-[13px] font-semibold text-ink-2">
-              Zamena na poziciji{' '}
-              {swap.position ? POSITION_LABEL[swap.position].toLowerCase() : '—'}
-            </p>
+            <p className="text-[13px] font-semibold text-ink-2">{swap.roleLabel}</p>
             <p className="text-[11.5px] text-ink-4">Imena i obrazlozenje su u placenom paketu</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
-          <Delta value={swap.projDelta} unit="FP" size="md" />
+          <Delta value={swap.projDelta} unit="BOD" size="md" />
           <span className="statmono text-[12px] text-ink-4">{signed(swap.priceDelta)} kr</span>
         </div>
       </div>

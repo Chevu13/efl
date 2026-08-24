@@ -10,8 +10,8 @@ export type NavLink = {
 export const PRIMARY: NavLink[] = [
   { href: '/igraci', label: 'Izbori kola', desc: 'Igraci koji vrede svoju cenu' },
   { href: '/baza', label: 'Baza igraca', desc: 'Cela liga sa cenom i formom' },
-  { href: '/raspored', label: 'Raspored', desc: 'Mecevi kola i tezina protivnika' },
-  { href: '/igra', label: 'Moj tim', desc: 'Sastavi postavu i igraj kolo' },
+  { href: '/raspored', label: 'Raspored', desc: 'Mecevi kola, procene i izazov kola' },
+  { href: '/igra', label: 'Moj tim', desc: 'Kadar, formacija, kapiten i trener' },
   { href: '/optimizator', label: 'Optimizator', desc: 'Najbolje zamene za tvoju postavu', premium: true }
 ];
 

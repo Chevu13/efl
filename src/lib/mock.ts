@@ -1,5 +1,6 @@
 import type {
   ChallengeLine,
+  Coach,
   Fixture,
   LeaderboardRow,
   Player,
@@ -399,6 +400,40 @@ export function generatePricing(
 
 export function mockPricedPlayers(roundId = MOCK_ROUND_ID): PricedPlayer[] {
   return generatePricing(mockPlayers(), mockFixtures(roundId), mockTeams(), roundId);
+}
+
+/* ------------------------------------------------------------------ */
+/* TRENERI                                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Jedan trener po timu.
+ *
+ * Prava imena trenera nisu u bazi, pa se do tada koristi oznaka tima.
+ * Kad se popuni tabela `coaches`, ova funkcija se vise ne poziva —
+ * ime, cena i projekcija dolaze odande.
+ */
+export function generateCoaches(
+  teams: Record<string, Team>,
+  fixtures: Fixture[],
+  roundId: number
+): Coach[] {
+  return Object.values(teams).map((t) => {
+    const rnd = seeded(`coach-${t.code}-${roundId}`);
+    const f = fixtures.find((x) => x.home_code === t.code || x.away_code === t.code);
+    const home = f?.home_code === t.code;
+    const edge = f?.home_edge ?? 50;
+    /* Trener najvise zavisi od toga da li tim dobija mec. */
+    const chance = (home ? edge : 100 - edge) / 100;
+
+    return {
+      id: `hc-${t.code}`,
+      name: `HC ${t.name_sr}`,
+      team_code: t.code,
+      price: round1(3.5 + chance * 4 + rnd() * 1.2),
+      projected: round1(6 + chance * 14 + (rnd() - 0.5) * 3)
+    };
+  });
 }
 
 /* ------------------------------------------------------------------ */

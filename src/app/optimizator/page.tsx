@@ -51,7 +51,7 @@ export default async function Optimizator() {
         as="h1"
         eyebrow={`${round.number}. kolo · optimizacija`}
         title="Optimizator postave"
-        desc="Alat trazi zamene koje donose vise projektovanih poena bez izlaska iz budzeta i pravila sastava. Uz svaku zamenu stoji razlog, pa mozes da proveris racun."
+        desc="Alat trazi zamene koje donose vise bodova bez izlaska iz budzeta i pravila sastava. Racuna mesto u postavi — petorka, kapiten, klupa — i uz svaku zamenu daje razlog."
         action={
           <div className="flex items-center gap-2">
             <Chip tone={premium ? 'brand' : 'default'}>{me.tier}</Chip>

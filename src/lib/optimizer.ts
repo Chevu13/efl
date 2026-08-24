@@ -1,97 +1,44 @@
 import { LINEUP, POSITION_LABEL } from './config';
 import { matchupWord, num } from './format';
-import type { Position, PricedPlayer } from './types';
+import {
+  checkLineup,
+  effectivePoints,
+  resolveLineup,
+  roleOf,
+  scoreLineup,
+  squadIds,
+  type LineupState,
+  type Role
+} from './lineup';
+import type { Coach, PricedPlayer } from './types';
 
 /**
  * Optimizator postave.
  *
  * Namerno nije crna kutija. Radi kao pohlepna lokalna pretraga: u svakom
- * krugu proba svaku moguću zamenu igrač-za-igrača koja postuje pravila
- * sastava i budzet, i uzima onu koja donosi najvise projektovanih poena.
- * Zaustavlja se kad vise nema poboljsanja.
+ * krugu proba svaku zamenu igrac-za-igraca koja postuje kvotu pozicija i
+ * budzet, i uzima onu koja donosi najvise bodova.
  *
- * Zato svaka preporuka ima objasnjenje izvedeno iz istih brojeva koje
- * korisnik vidi u tabeli — a ne iz nekog skrivenog modela.
+ * Vazno: racuna se ucinak NA MESTU u postavi, ne gola projekcija. Zamena
+ * startera vredi punu razliku, zamena igraca sa klupe polovinu, a zamena
+ * kapitena jedan i po put — pa optimizator sam od sebe prvo popravlja
+ * mesta koja najvise nose.
  */
 
-/* ------------------------------------------------------------------ */
-/* PROVERA SASTAVA                                                     */
-/* ------------------------------------------------------------------ */
-
-export type LineupCheck = {
-  valid: boolean;
-  violations: string[];
-  spent: number;
-  remaining: number;
-  projected: number;
-  byPosition: Record<Position, number>;
-  byTeam: Record<string, number>;
-};
-
-export function checkLineup(players: PricedPlayer[]): LineupCheck {
-  const violations: string[] = [];
-
-  const spent = round1(players.reduce((s, p) => s + (p.price ?? 0), 0));
-  const projected = round1(players.reduce((s, p) => s + (p.projected ?? 0), 0));
-
-  const byPosition: Record<Position, number> = { G: 0, F: 0, C: 0 };
-  const byTeam: Record<string, number> = {};
-
-  for (const p of players) {
-    if (p.position) byPosition[p.position]++;
-    if (p.team_code) byTeam[p.team_code] = (byTeam[p.team_code] ?? 0) + 1;
-  }
-
-  if (players.length > LINEUP.size) {
-    violations.push(`Postava ima ${players.length} igraca, dozvoljeno je ${LINEUP.size}.`);
-  }
-  if (spent > LINEUP.budget) {
-    violations.push(`Budzet je prekoracen za ${num(spent - LINEUP.budget)} kredita.`);
-  }
-
-  /* Pravila pozicija vaze tek kad je postava puna — dok se sastavlja
-     nema smisla vikati na korisnika da mu fali centar. */
-  if (players.length === LINEUP.size) {
-    (Object.keys(LINEUP.positions) as Position[]).forEach((pos) => {
-      const [min, max] = LINEUP.positions[pos];
-      const n = byPosition[pos];
-      if (n < min) violations.push(`Fali ${min - n} × ${POSITION_LABEL[pos].toLowerCase()}.`);
-      if (n > max) violations.push(`Previse igraca na poziciji ${pos} (${n}, najvise ${max}).`);
-    });
-  }
-
-  Object.entries(byTeam).forEach(([code, n]) => {
-    if (n > LINEUP.maxPerTeam) {
-      violations.push(`${n} igraca iz istog tima (${code.toUpperCase()}) — najvise ${LINEUP.maxPerTeam}.`);
-    }
-  });
-
-  return {
-    valid: violations.length === 0,
-    violations,
-    spent,
-    remaining: round1(LINEUP.budget - spent),
-    projected,
-    byPosition,
-    byTeam
-  };
-}
-
-/* ------------------------------------------------------------------ */
-/* PREPORUKA ZAMENE                                                    */
-/* ------------------------------------------------------------------ */
+const r1 = (n: number) => Math.round(n * 10) / 10;
 
 export type SwapReason = { label: string; detail: string };
 
 export type Swap = {
   out: PricedPlayer;
   in: PricedPlayer;
+  role: Role;
+  isCaptain: boolean;
   /** Razlika u ceni: negativno = zamena oslobadja kredite. */
   priceDelta: number;
-  /** Razlika u projekciji: uvek pozitivna, inace se zamena ne predlaze. */
+  /** Razlika u bodovima na tom mestu u postavi. */
   projDelta: number;
   reasons: SwapReason[];
-  /** Kratka recenica koja stoji kao naslov preporuke. */
   headline: string;
 };
 
@@ -104,23 +51,15 @@ export type OptimizeResult = {
   remaining: number;
   budget: number;
   swaps: Swap[];
-  /** Koliko zamena je ukupno nadjeno, i pre nego sto se lista skrati po paketu. */
   totalFound: number;
-  check: LineupCheck;
+  violations: string[];
+  /** Predlog bolje kapitenske trake, ako postoji. */
+  captainMove: { from: PricedPlayer; to: PricedPlayer; gain: number } | null;
 };
 
-const round1 = (n: number) => Math.round(n * 10) / 10;
+/* ------------------------------------------------------------------ */
 
-/** Da li kandidat sme u postavu bez krsenja pravila o broju iz istog tima. */
-function teamOk(lineup: PricedPlayer[], out: PricedPlayer, cand: PricedPlayer) {
-  if (!cand.team_code) return true;
-  const n = lineup.filter(
-    (p) => p.id !== out.id && p.team_code === cand.team_code
-  ).length;
-  return n < LINEUP.maxPerTeam;
-}
-
-function buildReasons(out: PricedPlayer, inc: PricedPlayer): SwapReason[] {
+function buildReasons(out: PricedPlayer, inc: PricedPlayer, role: Role, isCaptain: boolean): SwapReason[] {
   const r: SwapReason[] = [];
 
   r.push({
@@ -128,7 +67,20 @@ function buildReasons(out: PricedPlayer, inc: PricedPlayer): SwapReason[] {
     detail: `${num(inc.projected)} naspram ${num(out.projected)} fantasy poena u ovom kolu.`
   });
 
-  const pd = round1((inc.price ?? 0) - (out.price ?? 0));
+  if (role === 'bench') {
+    r.push({
+      label: 'Mesto u postavi',
+      detail: `Igrac je na klupi, pa se racuna ${LINEUP.benchMultiplier * 100}% poena — razlika u bodovima je upola manja od razlike u projekciji.`
+    });
+  }
+  if (isCaptain) {
+    r.push({
+      label: 'Kapitenska traka',
+      detail: `Mesto nosi ${LINEUP.captainMultiplier}× poena, pa svaka razlika ovde vredi najvise.`
+    });
+  }
+
+  const pd = r1((inc.price ?? 0) - (out.price ?? 0));
   r.push({
     label: 'Cena',
     detail:
@@ -140,8 +92,8 @@ function buildReasons(out: PricedPlayer, inc: PricedPlayer): SwapReason[] {
   });
 
   if (inc.matchup_score != null && out.matchup_score != null) {
-    const better = inc.matchup_score - out.matchup_score;
-    if (Math.abs(better) >= 0.5) {
+    const d = inc.matchup_score - out.matchup_score;
+    if (Math.abs(d) >= 0.5) {
       r.push({
         label: 'Protivnik',
         detail: `${matchupWord(inc.matchup_score).toLowerCase()} mec (${num(inc.matchup_score)}) umesto ${matchupWord(out.matchup_score).toLowerCase()}g (${num(out.matchup_score)}).`
@@ -149,197 +101,153 @@ function buildReasons(out: PricedPlayer, inc: PricedPlayer): SwapReason[] {
     }
   }
 
-  if (inc.season_avg != null && out.season_avg != null) {
-    const d = round1(inc.season_avg - out.season_avg);
-    if (Math.abs(d) >= 1) {
-      r.push({
-        label: 'Forma',
-        detail: `Prosek poslednjih pet kola ${num(inc.season_avg)} naspram ${num(out.season_avg)}.`
-      });
-    }
-  }
-
-  if (inc.minutes != null && out.minutes != null) {
-    const d = round1(inc.minutes - out.minutes);
-    if (d >= 2) {
-      r.push({
-        label: 'Minutaza',
-        detail: `${num(inc.minutes)} minuta po utakmici, ${num(d)} vise od igraca koji izlazi.`
-      });
-    }
-  }
-
-  if (inc.value_score != null && out.value_score != null) {
+  if (inc.season_avg != null && out.season_avg != null && Math.abs(inc.season_avg - out.season_avg) >= 1) {
     r.push({
-      label: 'Vrednost',
-      detail: `Ocena vrednosti ${num(inc.value_score)} naspram ${num(out.value_score)}.`
+      label: 'Forma',
+      detail: `Prosek poslednjih pet kola ${num(inc.season_avg)} naspram ${num(out.season_avg)}.`
+    });
+  }
+
+  if (inc.minutes != null && out.minutes != null && inc.minutes - out.minutes >= 2) {
+    r.push({
+      label: 'Minutaza',
+      detail: `${num(inc.minutes)} minuta po utakmici, ${num(r1(inc.minutes - out.minutes))} vise od igraca koji izlazi.`
     });
   }
 
   if (out.status && out.status !== 'ok') {
-    r.push({
-      label: 'Rizik',
-      detail: `Igrac koji izlazi je oznacen kao ${out.status}.`
-    });
+    r.push({ label: 'Rizik', detail: `Igrac koji izlazi je oznacen kao ${out.status}.` });
   }
 
   return r;
 }
 
-function headlineFor(out: PricedPlayer, inc: PricedPlayer, projDelta: number, priceDelta: number) {
-  if (priceDelta < -0.4) {
-    return `${num(projDelta)} poena vise i ${num(Math.abs(priceDelta))} kredita nazad`;
-  }
+function headlineFor(out: PricedPlayer, inc: PricedPlayer, delta: number, priceDelta: number, role: Role, isCaptain: boolean) {
+  if (isCaptain) return `Jaci kapiten — ${num(delta)} bodova vise`;
+  if (role === 'bench') return `Bolja klupa — ${num(delta)} bodova vise`;
+  if (priceDelta < -0.4) return `${num(delta)} bodova vise i ${num(Math.abs(priceDelta))} kredita nazad`;
   if (inc.matchup_score != null && out.matchup_score != null && inc.matchup_score - out.matchup_score >= 2) {
-    return `Znatno povoljniji protivnik uz ${num(projDelta)} poena vise`;
+    return `Znatno povoljniji protivnik uz ${num(delta)} bodova vise`;
   }
-  if (inc.season_avg != null && out.season_avg != null && inc.season_avg - out.season_avg >= 3) {
-    return `Bolja forma i ${num(projDelta)} projektovanih poena vise`;
-  }
-  return `${num(projDelta)} projektovanih poena vise za slicnu cenu`;
+  return `${num(delta)} bodova vise za slicnu cenu`;
 }
 
 /* ------------------------------------------------------------------ */
-/* GLAVNI POZIV                                                        */
-/* ------------------------------------------------------------------ */
 
 export function optimize(
-  lineupIds: string[],
+  state: LineupState,
   pool: PricedPlayer[],
+  coaches: Coach[],
   opts: { maxSwaps?: number; budget?: number } = {}
 ): OptimizeResult {
   const maxSwaps = opts.maxSwaps ?? 4;
   const budget = opts.budget ?? LINEUP.budget;
 
-  const byId = new Map(pool.map((p) => [p.id, p]));
-  let lineup = lineupIds.map((id) => byId.get(id)).filter(Boolean) as PricedPlayer[];
+  const players = new Map(pool.map((p) => [p.id, p]));
+  const coachMap = new Map(coaches.map((c) => [c.id, c]));
 
-  const currentTotal = round1(lineup.reduce((s, p) => s + (p.projected ?? 0), 0));
-  const currentSpent = round1(lineup.reduce((s, p) => s + (p.price ?? 0), 0));
+  let current = state;
+  const before = resolveLineup(current, players, coachMap);
+  const currentTotal = scoreLineup(before).total;
+  const currentSpent = checkLineup(current, before).spent;
 
   const swaps: Swap[] = [];
-  const used = new Set(lineup.map((p) => p.id));
 
   for (let step = 0; step < maxSwaps; step++) {
-    const spent = lineup.reduce((s, p) => s + (p.price ?? 0), 0);
-    let best: { out: PricedPlayer; in: PricedPlayer; gain: number } | null = null;
+    const resolved = resolveLineup(current, players, coachMap);
+    const check = checkLineup(current, resolved);
+    const inSquad = new Set(squadIds(current));
 
-    for (const out of lineup) {
-      const free = budget - spent + (out.price ?? 0);
+    let best: { out: PricedPlayer; in: PricedPlayer; gain: number; role: Role; captain: boolean } | null = null;
+
+    for (const out of resolved.all) {
+      const role = roleOf(current, out.id);
+      if (!role) continue;
+      const isCaptain = current.captain === out.id;
+      const free = check.remaining + (out.price ?? 0);
+      const outPts = effectivePoints(out, role, isCaptain);
 
       for (const cand of pool) {
-        if (used.has(cand.id)) continue;
-        if (cand.position !== out.position) continue; // pozicije ostaju netaknute
+        if (inSquad.has(cand.id)) continue;
+        /* Pozicija mora da ostane ista — inace se rusi kvota 4/4/2. */
+        if (cand.position !== out.position) continue;
         if ((cand.price ?? 0) > free + 1e-9) continue;
-        if (!teamOk(lineup, out, cand)) continue;
 
-        const gain = (cand.projected ?? 0) - (out.projected ?? 0);
+        const gain = effectivePoints(cand, role, isCaptain) - outPts;
         if (gain <= 0.05) continue;
-        if (!best || gain > best.gain) best = { out, in: cand, gain };
+        if (!best || gain > best.gain) {
+          best = { out, in: cand, gain, role, captain: isCaptain };
+        }
       }
     }
 
     if (!best) break;
 
-    const priceDelta = round1((best.in.price ?? 0) - (best.out.price ?? 0));
-    const projDelta = round1(best.gain);
+    const priceDelta = r1((best.in.price ?? 0) - (best.out.price ?? 0));
+    const projDelta = r1(best.gain);
 
     swaps.push({
       out: best.out,
       in: best.in,
+      role: best.role,
+      isCaptain: best.captain,
       priceDelta,
       projDelta,
-      reasons: buildReasons(best.out, best.in),
-      headline: headlineFor(best.out, best.in, projDelta, priceDelta)
+      reasons: buildReasons(best.out, best.in, best.role, best.captain),
+      headline: headlineFor(best.out, best.in, projDelta, priceDelta, best.role, best.captain)
     });
 
-    lineup = lineup.map((p) => (p.id === best!.out.id ? best!.in : p));
-    used.delete(best.out.id);
-    used.add(best.in.id);
+    /* Novi igrac preuzima tacno mesto onog koji izlazi. */
+    const swapId = (id: string) => (id === best!.out.id ? best!.in.id : id);
+    current = {
+      ...current,
+      starters: current.starters.map(swapId),
+      sixth: current.sixth ? swapId(current.sixth) : null,
+      bench: current.bench.map(swapId),
+      captain: current.captain ? swapId(current.captain) : null
+    };
   }
 
-  const optimizedTotal = round1(lineup.reduce((s, p) => s + (p.projected ?? 0), 0));
-  const optimizedSpent = round1(lineup.reduce((s, p) => s + (p.price ?? 0), 0));
+  /* Kapitenska traka je besplatna promena — proveri je posebno. */
+  const afterSwaps = resolveLineup(current, players, coachMap);
+  let captainMove: OptimizeResult['captainMove'] = null;
+  const bestCaptain = [...afterSwaps.starters].sort(
+    (a, b) => (b.projected ?? 0) - (a.projected ?? 0)
+  )[0];
+  const nowCaptain = afterSwaps.starters.find((p) => p.id === current.captain);
+
+  if (bestCaptain && nowCaptain && bestCaptain.id !== nowCaptain.id) {
+    const gain = r1(
+      ((bestCaptain.projected ?? 0) - (nowCaptain.projected ?? 0)) * (LINEUP.captainMultiplier - 1)
+    );
+    if (gain > 0.05) {
+      captainMove = { from: nowCaptain, to: bestCaptain, gain };
+      current = { ...current, captain: bestCaptain.id };
+    }
+  }
+
+  const after = resolveLineup(current, players, coachMap);
+  const finalCheck = checkLineup(current, after);
+  const optimizedTotal = scoreLineup(after).total;
 
   return {
     currentTotal,
     optimizedTotal,
-    improvement: round1(optimizedTotal - currentTotal),
+    improvement: r1(optimizedTotal - currentTotal),
     currentSpent,
-    optimizedSpent,
-    remaining: round1(budget - optimizedSpent),
+    optimizedSpent: finalCheck.spent,
+    remaining: finalCheck.remaining,
     budget,
     swaps,
     totalFound: swaps.length,
-    check: checkLineup(lineup)
+    violations: finalCheck.violations,
+    captainMove
   };
 }
 
-/* ------------------------------------------------------------------ */
-/* AUTOMATSKA POSTAVA                                                  */
-/* ------------------------------------------------------------------ */
-
-/**
- * Predlog pocetne postave. Prvo popuni minimum po pozicijama najboljom
- * vrednoscu, pa preostala mesta popuni najvecom projekcijom koju budzet
- * jos podnosi. Sluzi kao polazna tacka, ne kao konacan odgovor.
- */
-export function suggestLineup(pool: PricedPlayer[], budget = LINEUP.budget): PricedPlayer[] {
-  const picked: PricedPlayer[] = [];
-  const teamCount: Record<string, number> = {};
-
-  const canAdd = (p: PricedPlayer, spent: number) => {
-    if (picked.some((x) => x.id === p.id)) return false;
-    if ((p.price ?? 0) + spent > budget) return false;
-    if (p.team_code && (teamCount[p.team_code] ?? 0) >= LINEUP.maxPerTeam) return false;
-    return true;
-  };
-
-  const add = (p: PricedPlayer) => {
-    picked.push(p);
-    if (p.team_code) teamCount[p.team_code] = (teamCount[p.team_code] ?? 0) + 1;
-  };
-
-  const byValue = [...pool].sort((a, b) => (b.value_score ?? 0) - (a.value_score ?? 0));
-
-  /* 1) minimum po pozicijama */
-  (Object.keys(LINEUP.positions) as Position[]).forEach((pos) => {
-    const [min] = LINEUP.positions[pos];
-    for (const p of byValue) {
-      if (picked.filter((x) => x.position === pos).length >= min) break;
-      if (p.position !== pos) continue;
-      const spent = picked.reduce((s, x) => s + (x.price ?? 0), 0);
-      if (canAdd(p, spent)) add(p);
-    }
-  });
-
-  /* 2) ostatak — najveca projekcija koju budzet podnosi */
-  const byProjected = [...pool].sort((a, b) => (b.projected ?? 0) - (a.projected ?? 0));
-  for (const p of byProjected) {
-    if (picked.length >= LINEUP.size) break;
-    if (!p.position) continue;
-    const [, max] = LINEUP.positions[p.position];
-    if (picked.filter((x) => x.position === p.position).length >= max) continue;
-
-    /* Ostaviti dovoljno kredita da se preostala mesta uopste mogu popuniti. */
-    const spent = picked.reduce((s, x) => s + (x.price ?? 0), 0);
-    const slotsLeftAfter = LINEUP.size - picked.length - 1;
-    const cheapest = Math.min(...pool.map((x) => x.price ?? 0));
-    if (spent + (p.price ?? 0) + slotsLeftAfter * cheapest > budget) continue;
-
-    if (canAdd(p, spent)) add(p);
-  }
-
-  /* 3) ako je jos prazno, popuni najjeftinijim sto uklapa pravila */
-  const cheapFirst = [...pool].sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
-  for (const p of cheapFirst) {
-    if (picked.length >= LINEUP.size) break;
-    if (!p.position) continue;
-    const [, max] = LINEUP.positions[p.position];
-    if (picked.filter((x) => x.position === p.position).length >= max) continue;
-    const spent = picked.reduce((s, x) => s + (x.price ?? 0), 0);
-    if (canAdd(p, spent)) add(p);
-  }
-
-  return picked;
-}
+/** Naziv uloge za prikaz uz preporuku. */
+export const roleLabel = (role: Role, isCaptain: boolean, position: string | null) => {
+  if (isCaptain) return 'Kapiten';
+  const base = role === 'starter' ? 'Prva petorka' : role === 'sixth' ? 'Sesti igrac' : 'Klupa';
+  return position ? `${base} · ${POSITION_LABEL[position as 'G' | 'F' | 'C']}` : base;
+};

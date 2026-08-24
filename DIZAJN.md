@@ -135,7 +135,8 @@ Kartica nije podrazumevani oblik. Po tipu podatka bira se oblik:
 | Odnos dva tima | red pune sirine | `FixtureRow` |
 | Zbirni brojevi | traka podeljena vlas-linijama | `StatStrip` |
 | Jedan zakljucak sa razlogom | editorijalni blok sa portretom | naslovna, `/igraci` |
-| Sastav tima | teren sa mestima | `CourtLineup` |
+| Sastav tima | teren sa mestima po formaciji | `CourtLineup` |
+| Klupa i sesti igrac | traka ispod terena | `BenchRow` |
 | Preporuka promene | red „izlazi → ulazi" | `OptimizerView` |
 | Ponuda | stepenice, ne cetiri iste kartice | `PricingTable` |
 

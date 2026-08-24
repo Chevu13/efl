@@ -84,6 +84,19 @@ export type PricedPlayer = Player & PlayerRound & { team?: Team };
 
 export type LeaderboardRow = { username: string; accuracy: number };
 
+/**
+ * Trener. Po zvanicnim pravilima ulazi u postavu kao jedanaesti izbor,
+ * kosta kredite i nosi pune poene — pa je i ovde ravnopravan entitet, a
+ * ne ukras na kartici tima.
+ */
+export type Coach = {
+  id: string;
+  name: string;
+  team_code: string;
+  price: number;
+  projected: number;
+};
+
 /* ------------------------------------------------------------------ */
 /* PRETPLATE                                                           */
 /* ------------------------------------------------------------------ */

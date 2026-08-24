@@ -12,19 +12,30 @@ import type { Fixture, PricedPlayer, Team } from '@/lib/types';
 export default function FixtureRow({
   f,
   teams,
-  topPlayers = []
+  topPlayers = [],
+  pick,
+  onPick,
+  pickDisabled = false
 }: {
   f: Fixture;
   teams: Record<string, Team>;
   /** Najbolje fantasy prilike iz ovog meca. */
   topPlayers?: PricedPlayer[];
+  /** Izabrani pobednik u izazovu kola. */
+  pick?: 'home' | 'away';
+  /** Ako nije prosledjeno, red je samo raspored — bez glasanja. */
+  onPick?: (v: 'home' | 'away') => void;
+  pickDisabled?: boolean;
 }) {
   const t = dayLabel(f.tip_off);
   const edge = f.home_edge;
   const played = f.home_score != null && f.away_score != null;
 
   return (
-    <article className="group border-b border-line transition-colors duration-fast last:border-0 hover:bg-elev">
+    <article
+      className={`group border-b border-line transition-colors duration-fast last:border-0
+                  hover:bg-elev ${pick ? 'rule-brand bg-brand/[.04]' : ''}`}
+    >
       <div className="grid items-center gap-4 px-4 py-4 sm:px-5 lg:grid-cols-[92px_1fr_auto]">
         {/* vreme */}
         <div className="flex items-center gap-3 lg:block">
@@ -104,6 +115,40 @@ export default function FixtureRow({
           <p className="mt-1.5 text-center font-mono text-[10px] uppercase tracking-[0.14em] text-ink-4">
             nasa procena sanse za pobedu
           </p>
+        </div>
+      )}
+
+      {/* glasanje — isti red, bez skakanja na drugu stranicu */}
+      {onPick && (
+        <div className="px-4 pb-4 sm:px-5">
+          <div className="flex items-center gap-2">
+            <span className="label shrink-0">Ko pobedjuje</span>
+            <span className="h-px flex-1 bg-line/70" />
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {(['home', 'away'] as const).map((side) => {
+              const on = pick === side;
+              const code = side === 'home' ? f.home_code : f.away_code;
+              return (
+                <button
+                  key={side}
+                  onClick={() => onPick(side)}
+                  disabled={pickDisabled}
+                  aria-pressed={on}
+                  className={`inline-flex h-11 items-center justify-center gap-2 truncate rounded-sm border
+                              px-3 text-[12.5px] font-semibold transition-colors duration-fast
+                              disabled:opacity-40
+                              ${on
+                                ? 'border-brand bg-brand text-black'
+                                : 'border-line text-ink-3 hover:border-line-2 hover:bg-elev hover:text-ink'}`}
+                >
+                  {on && <span aria-hidden>✓</span>}
+                  <TeamCrest team={teams[code]} code={code} s="xs" />
+                  <span className="truncate">{teamName(teams, code)}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 

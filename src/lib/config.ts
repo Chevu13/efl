@@ -1,4 +1,4 @@
-import type { Tier } from './types';
+import type { Position, Tier } from './types';
 
 /**
  * Jedno mesto za sve što je „poslovna odluka”: cene, šta koji paket nosi,
@@ -137,19 +137,58 @@ export const NEXT_TIER: Record<Tier, PlanCode> = {
 /* PRAVILA SASTAVA                                                     */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Pravila EuroLeague Fantasy Challenge takmicenja.
+ *
+ * Ovo nisu nasa pravila nego zvanicna — postava napravljena ovde mora da
+ * se moze prepisati u zvanicnu igru bez ijedne izmene. Zato su brojevi
+ * tacni, a ne priblizni: cetiri beka, cetiri krila, dva centra i trener.
+ */
 export const LINEUP = {
+  /** 10 igraca + 1 trener. */
   size: 10,
   budget: 100,
-  maxPerTeam: 2,
-  /** [minimum, maksimum] po poziciji. */
-  positions: {
-    G: [3, 5],
-    F: [3, 5],
-    C: [1, 3]
-  } as Record<'G' | 'F' | 'C', [number, number]>
+
+  /** Tacan sastav kadra — ni manje ni vise. */
+  squad: { G: 4, F: 4, C: 2 } as Record<Position, number>,
+
+  starters: 5,
+  /** Sesti igrac nosi pune poene, kao i starteri. */
+  sixthMan: 1,
+  bench: 4,
+
+  /** Kapiten iz prve petorke. */
+  captainMultiplier: 1.5,
+  /** Klupa bez sestog igraca. */
+  benchMultiplier: 0.5,
+
+  hasCoach: true
 } as const;
 
-export const POSITION_LABEL: Record<'G' | 'F' | 'C', string> = {
+export type FormationCode = '2-2-1' | '3-1-1' | '1-3-1' | '1-2-2' | '2-1-2';
+
+export type Formation = {
+  code: FormationCode;
+  /** Koliko igraca po poziciji ide u prvu petorku. */
+  G: number;
+  F: number;
+  C: number;
+  hint: string;
+};
+
+/** Dozvoljene formacije prve petorke, citaju se bek-krilo-centar. */
+export const FORMATIONS: Formation[] = [
+  { code: '2-2-1', G: 2, F: 2, C: 1, hint: 'Klasicna podela, najsigurniji izbor.' },
+  { code: '3-1-1', G: 3, F: 1, C: 1, hint: 'Tri beka — za kola sa brzim mecevima.' },
+  { code: '1-3-1', G: 1, F: 3, C: 1, hint: 'Tezina na krilima.' },
+  { code: '1-2-2', G: 1, F: 2, C: 2, hint: 'Dva centra — kad se otvara skok.' },
+  { code: '2-1-2', G: 2, F: 1, C: 2, hint: 'Dva centra uz dva beka.' }
+];
+
+export const formationByCode = (code: string): Formation =>
+  FORMATIONS.find((f) => f.code === code) ?? FORMATIONS[0];
+
+export const POSITION_LABEL: Record<Position, string> = {
   G: 'Bek',
   F: 'Krilo',
   C: 'Centar'

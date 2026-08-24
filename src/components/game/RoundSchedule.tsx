@@ -2,13 +2,21 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import FixtureRow from '../fixtures/FixtureRow';
 import PlayerIdentity from '../player/PlayerIdentity';
-import FixtureCard from '../FixtureCard';
 import Leaderboard from './Leaderboard';
 import { Button } from '../ui/Button';
 import { Alert, RowDivider } from '../ui/primitives';
-import { num, untilLabel } from '@/lib/format';
-import type { ChallengeLine, Fixture, LeaderboardRow, Player, Round, Team } from '@/lib/types';
+import { dayLabel, num, untilLabel } from '@/lib/format';
+import type {
+  ChallengeLine,
+  Fixture,
+  LeaderboardRow,
+  Player,
+  PricedPlayer,
+  Round,
+  Team
+} from '@/lib/types';
 
 type Line = ChallengeLine & { players: Player };
 type Answers = Record<string, string>;
@@ -18,23 +26,27 @@ type SavedPick =
   | { kind: 'fixture'; fixture_id: number; answer: string };
 
 /**
- * Izazov kola — pogadja se da li igrac prelazi granicu i ko dobija mec.
+ * Raspored kola sa izazovom u istom redu.
  *
- * Ovo je postojeca igra proizvoda i ostaje netaknuta u ponasanju:
- * isti API, isti listic, ista nagrada. Promenjeno je samo kako izgleda i
- * koliko je jasno gde si stao.
+ * Ranije su ovo bila dva ekrana: raspored na jednom, glasanje na drugom.
+ * Nema razloga — mec koji gledas je mec na koji glasas, pa dugmad stoje
+ * tu gde su i procena snaga i fantasy prilike iz tog meca.
+ *
+ * Prognoza se i dalje salje jednim pozivom, na istu rutu kao pre.
  */
-export default function ChallengeBoard({
+export default function RoundSchedule({
   round,
-  lines,
   fixtures,
+  lines,
+  players,
   teams,
   board,
   loggedIn
 }: {
   round: Round;
-  lines: Line[];
   fixtures: Fixture[];
+  lines: Line[];
+  players: PricedPlayer[];
   teams: Record<string, Team>;
   board: LeaderboardRow[];
   loggedIn: boolean;
@@ -46,7 +58,7 @@ export default function ChallengeBoard({
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  /* Vrati ranije poslat listic. */
+  /* Vrati ranije poslatu prognozu. */
   useEffect(() => {
     if (!loggedIn) {
       setLoading(false);
@@ -77,15 +89,17 @@ export default function ChallengeBoard({
   const left = total - given;
   const percent = total ? Math.round((given / total) * 100) : 0;
   const locked = round.status !== 'open';
+  /* Poslata prognoza se i dalje vidi, samo se ne menja dok se ne otkljuca. */
+  const frozen = sent || locked;
 
   function answer(key: string, value: string) {
-    if (sent || locked) return;
+    if (frozen) return;
     setAnswers((prev) => ({ ...prev, [key]: value }));
   }
 
   async function submit() {
     if (!loggedIn) {
-      router.push(`/prijava?next=${encodeURIComponent('/igra')}`);
+      router.push(`/prijava?next=${encodeURIComponent('/raspored')}`);
       return;
     }
     setBusy(true);
@@ -117,102 +131,123 @@ export default function ChallengeBoard({
     }
   }
 
-  if (loading) {
-    return <div className="skel h-64 w-full rounded-md" aria-label="Ucitavanje prognoze" />;
-  }
+  const byDay = fixtures.reduce<Record<string, Fixture[]>>((acc, f) => {
+    (acc[f.tip_off?.slice(0, 10) ?? 'bez-termina'] ||= []).push(f);
+    return acc;
+  }, {});
+  const days = Object.keys(byDay).sort();
 
-  if (sent) {
-    return (
-      <div className="space-y-6">
-        <div className="panel hatch flex flex-col items-center px-6 py-12 text-center">
-          <span
-            className="grid h-12 w-12 place-items-center rounded-full border border-brand bg-brand/15"
-            aria-hidden
-          >
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M5 12.5 10 17.5 19 7"
-                stroke="#DF6320"
-                strokeWidth="2.4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </span>
-          <h3 className="mt-4 text-[22px] uppercase">Prognoza je poslata</h3>
-          <p className="mt-2 max-w-sm text-small text-ink-3">
-            Rezultati stizu posle poslednje utakmice kola. Devet od deset tacnih
-            donosi PRO na sledece kolo.
-          </p>
-          {!locked && (
-            <Button variant="ghost" className="mt-6" onClick={() => setSent(false)}>
-              Izmeni prognozu
-            </Button>
-          )}
-        </div>
-        <Leaderboard rows={board} />
-      </div>
-    );
-  }
+  const bestFor = (home: string, away: string) =>
+    players
+      .filter((p) => p.team_code === home || p.team_code === away)
+      .sort((a, b) => (b.projected ?? 0) - (a.projected ?? 0))
+      .slice(0, 3);
 
   return (
-    <div className="space-y-6">
-      {/* napredak */}
-      <div className="panel px-5 py-4">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h3 className="text-[20px] uppercase">Iznad ili ispod?</h3>
-            <p className="mt-1.5 max-w-md text-small text-ink-3">
-              {lines.length} igraca i {fixtures.length} utakmica. Bez uloga — igra se za paket.
-            </p>
-          </div>
-          <div className="text-right">
-            <div className="stat text-[30px] leading-none">
-              <span className="text-brand">{given}</span>
-              <span className="text-ink-4">/{total}</span>
+    <div className="space-y-8">
+      {/* ---------------- stanje prognoze ---------------- */}
+      {!loading && total > 0 && (
+        <div className="panel px-5 py-4">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="text-[20px] uppercase">Izazov kola</h2>
+              <p className="mt-1.5 max-w-md text-small text-ink-3">
+                Pogodi pobednike meceva i da li igraci prelaze granicu. Bez uloga —
+                devet od deset tacnih donosi PRO na sledece kolo.
+              </p>
             </div>
-            <div className="label mt-1.5">Odgovoreno</div>
+            <div className="text-right">
+              <div className="stat text-[30px] leading-none">
+                <span className="text-brand">{given}</span>
+                <span className="text-ink-4">/{total}</span>
+              </div>
+              <div className="label mt-1.5">Odgovoreno</div>
+            </div>
+          </div>
+
+          <div className="mt-4 h-1 overflow-hidden rounded-full bg-elev">
+            <div
+              className="h-full rounded-full bg-brand transition-[width] duration-slow ease-out"
+              style={{ width: `${percent}%` }}
+            />
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="chip">
+              <b className="text-brand">9/10</b> sledece kolo PRO
+            </span>
+            <span className="chip">
+              <b className="text-ink">#1</b> u mesecu — mesec dana PRO
+            </span>
+            {round.deadline && (
+              <span className="chip">Zakljucava se za {untilLabel(round.deadline)}</span>
+            )}
           </div>
         </div>
+      )}
 
-        <div className="mt-4 h-1 overflow-hidden rounded-full bg-elev">
-          <div
-            className="h-full rounded-full bg-brand transition-[width] duration-slow ease-out"
-            style={{ width: `${percent}%` }}
-          />
-        </div>
-
-        <div className="mt-4 flex flex-wrap gap-2">
-          <span className="chip">
-            <b className="text-brand">9/10</b> sledece kolo PRO
-          </span>
-          <span className="chip">
-            <b className="text-ink">#1</b> u mesecu — mesec dana PRO
-          </span>
-          {round.deadline && (
-            <span className="chip">Zakljucava se za {untilLabel(round.deadline)}</span>
-          )}
-        </div>
-      </div>
-
-      {locked && (
-        <Alert tone="warn" title="Kolo je zakljucano">
-          Prognoza se vise ne moze poslati. Rezultati stizu posle poslednje utakmice.
+      {sent && !locked && (
+        <Alert
+          tone="ok"
+          title="Prognoza je poslata"
+          action={
+            <Button variant="ghost" size="sm" onClick={() => setSent(false)}>
+              Izmeni
+            </Button>
+          }
+        >
+          Rezultati stizu posle poslednje utakmice kola.
         </Alert>
       )}
 
-      {/* granice igraca */}
+      {locked && (
+        <Alert tone="warn" title="Kolo je zakljucano">
+          Prognoza se vise ne moze menjati. Raspored i procene ostaju vidljivi.
+        </Alert>
+      )}
+
+      {/* ---------------- mecevi po danima ---------------- */}
+      {days.map((day) => {
+        const label = day === 'bez-termina' ? null : dayLabel(`${day}T12:00:00`);
+        return (
+          <section key={day}>
+            <RowDivider
+              title={label ? label.date : 'Termin nije zakazan'}
+              meta={
+                label
+                  ? `${label.weekday} · ${byDay[day].length} utakmica`
+                  : `${byDay[day].length} utakmica`
+              }
+            />
+            <div className="mt-4 overflow-hidden rounded-md border border-line bg-surface">
+              {byDay[day].map((f) => (
+                <FixtureRow
+                  key={f.id}
+                  f={f}
+                  teams={teams}
+                  topPlayers={bestFor(f.home_code, f.away_code)}
+                  pick={answers[`M${f.id}`] as 'home' | 'away' | undefined}
+                  onPick={loading ? undefined : (v) => answer(`M${f.id}`, v)}
+                  pickDisabled={frozen}
+                />
+              ))}
+            </div>
+          </section>
+        );
+      })}
+
+      {/* ---------------- granice igraca ---------------- */}
       {lines.length > 0 && (
         <section>
           <RowDivider title="Igraci — iznad ili ispod granice" meta={`${lines.length}`} />
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {lines.map((l) => (
               <LineCard
                 key={l.id}
                 line={l}
                 teams={teams}
                 value={answers[`L${l.id}`]}
-                disabled={locked}
+                disabled={frozen}
                 onPick={(v) => answer(`L${l.id}`, v)}
               />
             ))}
@@ -220,26 +255,8 @@ export default function ChallengeBoard({
         </section>
       )}
 
-      {/* mecevi */}
-      {fixtures.length > 0 && (
-        <section>
-          <RowDivider title="Utakmice — ko pobedjuje" meta={`${fixtures.length}`} />
-          <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {fixtures.map((f) => (
-              <FixtureCard
-                key={f.id}
-                f={f}
-                teams={teams}
-                pick={answers[`M${f.id}`] as 'home' | 'away' | undefined}
-                onPick={locked ? undefined : (v) => answer(`M${f.id}`, v)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* slanje */}
-      {!locked && (
+      {/* ---------------- slanje ---------------- */}
+      {!frozen && total > 0 && (
         <div
           className="sticky bottom-3 z-20 flex flex-wrap items-center gap-4 rounded-md border border-line-2
                      bg-raise/95 px-4 py-3.5 shadow-rail backdrop-blur"

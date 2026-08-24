@@ -51,9 +51,9 @@ plaćanje piše da se paket otključava pristupnim kodom.
 src/
   app/
     page.tsx              početna — analiza kola i pregled proizvoda
-    igra/                 moj tim (sastav) + izazov kola
+    igra/                 moj tim — kadar, formacija, kapiten, trener
     optimizator/          preporučene zamene, Premium
-    raspored/             mečevi kola i procena snaga
+    raspored/             mečevi kola, procene i izazov kola (glasanje)
     igraci/               izbori kola, zaključani po paketu
     baza/                 svi igrači, tabela + sastavi po timovima
     profil/               nalog, paket, uplate, statistika
@@ -85,6 +85,23 @@ src/
     supabase/             klijent za pregledač i za server
 supabase/migrations/      SQL migracije
 ```
+
+## Pravila fantasy takmičenja
+
+Postava prati zvanična pravila EuroLeague Fantasy Challenge takmičenja i
+sve je na jednom mestu, u `src/lib/config.ts`:
+
+- **kadar**: 4 beka, 4 krila, 2 centra i 1 trener — tačno, ne najmanje
+- **budžet**: 100 kredita (trener se plaća iz istog budžeta)
+- **formacije prve petorke**: 2-2-1, 3-1-1, 1-3-1, 1-2-2, 2-1-2 (bek–krilo–centar)
+- **bodovanje**: petorka 100%, kapiten 150%, šesti igrač 100%, klupa 50%, trener 100%
+
+Račun i provera su u `src/lib/lineup.ts`, a optimizator u
+`src/lib/optimizer.ts` računa **učinak na mestu u postavi** — zamena u
+petorci vredi punu razliku, na klupi polovinu, kod kapitena 1.5×.
+
+Treneri dolaze iz tabele `coaches`; dok je nema, izvodi se po jedan
+trener po timu iz rasporeda i označava imenom tima.
 
 ## Baza
 

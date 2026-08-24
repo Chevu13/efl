@@ -1,45 +1,59 @@
 import type { Metadata } from 'next';
-import FixtureRow from '@/components/fixtures/FixtureRow';
-import { SectionHead, EmptyState, Chip, RowDivider } from '@/components/ui/primitives';
+import RoundSchedule from '@/components/game/RoundSchedule';
+import { SectionHead, EmptyState, Chip } from '@/components/ui/primitives';
 import { StatStrip } from '@/components/ui/Stat';
-import { getCurrentRound, getFixtures, getPricedPlayers, getTeams } from '@/lib/data';
-import { dayLabel, num, untilLabel } from '@/lib/format';
+import {
+  getChallengeLines,
+  getCurrentRound,
+  getFixtures,
+  getLeaderboard,
+  getMyTier,
+  getPricedPlayers,
+  getTeams
+} from '@/lib/data';
+import { num, untilLabel } from '@/lib/format';
 
-export const revalidate = 60;
+export const revalidate = 30;
 
 export const metadata: Metadata = {
-  title: 'Raspored kola',
+  title: 'Raspored i izazov kola',
   description:
-    'Mecevi tekuceg kola EuroLeague sa procenom sanse za pobedu i najboljim fantasy prilikama.'
+    'Mecevi tekuceg kola EuroLeague sa procenom sanse za pobedu, fantasy prilikama i glasanjem za izazov kola.'
 };
 
 /**
  * Raspored kola.
  *
- * Mecevi su redovi u tabeli, ne kartice dogadjaja: dan po dan, sa
- * procenom snaga i sa tri fantasy prilike iz svakog meca. Cilj je da se
- * kolo procita odozgo nadole za trideset sekundi.
+ * Mecevi su redovi u tabeli, ne kartice dogadjaja: dan po dan, sa procenom
+ * snaga i sa tri fantasy prilike iz svakog meca. Glasanje za izazov kola
+ * stoji u istom redu — mec koji gledas je mec na koji glasas, pa nema
+ * razloga da to budu dva ekrana.
  */
 export default async function Raspored() {
-  const [round, teams] = await Promise.all([getCurrentRound(), getTeams()]);
-  const [fixtures, players] = round
-    ? await Promise.all([getFixtures(round.id), getPricedPlayers(round.id)])
-    : [[], []];
+  const [round, teams, me] = await Promise.all([getCurrentRound(), getTeams(), getMyTier()]);
 
-  const byDay = fixtures.reduce<Record<string, typeof fixtures>>((acc, f) => {
-    (acc[f.tip_off?.slice(0, 10) ?? 'bez-termina'] ||= []).push(f);
-    return acc;
-  }, {});
+  if (!round) {
+    return (
+      <div className="page py-10">
+        <SectionHead as="h1" eyebrow="Raspored" title="Raspored" />
+        <div className="mt-8">
+          <EmptyState
+            title="Nema aktivnog kola"
+            desc="Dodaj kolo u tabelu rounds, pa mecevi u tabelu fixtures."
+          />
+        </div>
+      </div>
+    );
+  }
 
-  const days = Object.keys(byDay).sort();
+  const [fixtures, players, lines, board] = await Promise.all([
+    getFixtures(round.id),
+    getPricedPlayers(round.id),
+    getChallengeLines(round.id),
+    getLeaderboard()
+  ]);
 
-  /* Najbolja fantasy prilika po meču — po projekciji, ne po imenu. */
-  const bestFor = (home: string, away: string) =>
-    players
-      .filter((p) => p.team_code === home || p.team_code === away)
-      .sort((a, b) => (b.projected ?? 0) - (a.projected ?? 0))
-      .slice(0, 3);
-
+  const days = new Set(fixtures.map((f) => f.tip_off?.slice(0, 10) ?? '—'));
   const avgEdge = fixtures.length
     ? fixtures.reduce((s, f) => s + Math.abs((f.home_edge ?? 50) - 50), 0) / fixtures.length
     : 0;
@@ -48,10 +62,17 @@ export default async function Raspored() {
     <div className="page py-10">
       <SectionHead
         as="h1"
-        eyebrow={round ? `${round.season} · ${round.number}. kolo` : 'Raspored'}
-        title={round ? `${round.number}. kolo` : 'Raspored'}
-        desc="Procena sanse za pobedu izvedena je iz forme, kvaliteta rotacije i prednosti domaceg terena. Sluzi kao kontekst za izbor igraca, ne kao savet za kladjenje."
-        action={round?.deadline ? <Chip>Jos {untilLabel(round.deadline)}</Chip> : undefined}
+        eyebrow={`${round.season} · ${round.number}. kolo`}
+        title="Raspored i izazov"
+        desc="Procena sanse za pobedu izvedena je iz forme, kvaliteta rotacije i prednosti domaceg terena. Uz svaki mec mozes odmah da glasas ko pobedjuje."
+        action={
+          <div className="flex items-center gap-2">
+            {round.deadline && <Chip>Jos {untilLabel(round.deadline)}</Chip>}
+            <Chip tone={round.status === 'open' ? 'brand' : 'default'}>
+              {round.status === 'open' ? 'Otvoreno' : 'Zakljucano'}
+            </Chip>
+          </div>
+        }
       />
 
       {fixtures.length > 0 && (
@@ -59,7 +80,7 @@ export default async function Raspored() {
           className="mt-7"
           items={[
             { label: 'Utakmica', value: String(fixtures.length) },
-            { label: 'Dana igranja', value: String(days.length) },
+            { label: 'Dana igranja', value: String(days.size) },
             {
               label: 'Prosecna razlika',
               value: num(avgEdge, 0),
@@ -75,42 +96,24 @@ export default async function Raspored() {
         />
       )}
 
-      {days.length === 0 ? (
-        <div className="mt-8">
+      <div className="mt-10">
+        {fixtures.length === 0 ? (
           <EmptyState
             title="Nema zakazanih utakmica"
-            desc="Dodaj mecevi u tabelu fixtures za tekuce kolo, sa terminom i kodovima timova."
+            desc="Dodaj meceve u tabelu fixtures za tekuce kolo, sa terminom i kodovima timova."
           />
-        </div>
-      ) : (
-        <div className="mt-10 space-y-10">
-          {days.map((day) => {
-            const label = day === 'bez-termina' ? null : dayLabel(`${day}T12:00:00`);
-            return (
-              <section key={day}>
-                <RowDivider
-                  title={label ? label.date : 'Termin nije zakazan'}
-                  meta={
-                    label
-                      ? `${label.weekday} · ${byDay[day].length} utakmica`
-                      : `${byDay[day].length} utakmica`
-                  }
-                />
-                <div className="mt-4 overflow-hidden rounded-md border border-line bg-surface">
-                  {byDay[day].map((f) => (
-                    <FixtureRow
-                      key={f.id}
-                      f={f}
-                      teams={teams}
-                      topPlayers={bestFor(f.home_code, f.away_code)}
-                    />
-                  ))}
-                </div>
-              </section>
-            );
-          })}
-        </div>
-      )}
+        ) : (
+          <RoundSchedule
+            round={round}
+            fixtures={fixtures}
+            lines={lines}
+            players={players}
+            teams={teams}
+            board={board}
+            loggedIn={!!me.userId}
+          />
+        )}
+      </div>
     </div>
   );
 }

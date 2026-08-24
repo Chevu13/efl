@@ -1,6 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { emptyLineup, type LineupState } from './lineup';
+import { FORMATIONS } from './config';
 
 /**
  * Postava se cuva u pregledacu, po kolu.
@@ -11,27 +13,47 @@ import { useCallback, useEffect, useState } from 'react';
  * eksplicitno, jednim pozivom.
  */
 
-const KEY = (roundId: number) => `efl:postava:v1:${roundId}`;
+/* v2 nosi uloge (petorka, sesti, klupa, kapiten, trener). Stari v1 zapis
+   je bio obican spisak id-jeva i ne moze se prevesti u novi oblik bez
+   nagadjanja, pa se jednostavno preskace. */
+const KEY = (roundId: number) => `efl:postava:v2:${roundId}`;
+
+function parse(raw: string | null): LineupState | null {
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(raw) as Partial<LineupState>;
+    const strings = (x: unknown) =>
+      Array.isArray(x) ? x.filter((i): i is string => typeof i === 'string') : [];
+
+    return {
+      starters: strings(v.starters),
+      sixth: typeof v.sixth === 'string' ? v.sixth : null,
+      bench: strings(v.bench),
+      captain: typeof v.captain === 'string' ? v.captain : null,
+      coach: typeof v.coach === 'string' ? v.coach : null,
+      formation:
+        FORMATIONS.some((f) => f.code === v.formation) && v.formation
+          ? v.formation
+          : '2-2-1'
+    };
+  } catch {
+    return null;
+  }
+}
 
 export function useLineup(roundId: number) {
-  const [ids, setIds] = useState<string[]>([]);
+  const [state, setState] = useState<LineupState>(emptyLineup);
   const [ready, setReady] = useState(false);
 
   /* Citanje tek na klijentu — na serveru localStorage ne postoji. */
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(KEY(roundId));
-      const parsed: unknown = raw ? JSON.parse(raw) : [];
-      setIds(Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : []);
-    } catch {
-      setIds([]);
-    }
+    setState(parse(window.localStorage.getItem(KEY(roundId))) ?? emptyLineup());
     setReady(true);
   }, [roundId]);
 
   const save = useCallback(
-    (next: string[]) => {
-      setIds(next);
+    (next: LineupState) => {
+      setState(next);
       try {
         window.localStorage.setItem(KEY(roundId), JSON.stringify(next));
       } catch {
@@ -41,13 +63,13 @@ export function useLineup(roundId: number) {
     [roundId]
   );
 
-  const add = useCallback((id: string) => save(ids.includes(id) ? ids : [...ids, id]), [ids, save]);
-  const remove = useCallback((id: string) => save(ids.filter((x) => x !== id)), [ids, save]);
-  const toggle = useCallback(
-    (id: string) => (ids.includes(id) ? remove(id) : add(id)),
-    [ids, add, remove]
+  /** Primeni izmenu opisanu funkcijom nad trenutnim stanjem. */
+  const update = useCallback(
+    (fn: (s: LineupState) => LineupState) => save(fn(state)),
+    [state, save]
   );
-  const clear = useCallback(() => save([]), [save]);
 
-  return { ids, ready, add, remove, toggle, clear, replace: save };
+  const clear = useCallback(() => save(emptyLineup()), [save]);
+
+  return { state, ready, save, update, clear };
 }
