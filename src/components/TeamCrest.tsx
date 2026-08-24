@@ -45,7 +45,7 @@ export default function TeamCrest({
       className={`relative grid shrink-0 place-items-center overflow-hidden rounded-sm border
                   border-line-2 font-mono font-bold uppercase tracking-tight text-ink-2
                   ${SIZE[s]} ${className}`}
-      style={{ background: `hsl(${h} 32% 15%)` }}
+      style={src && !failed ? { background: '#000' } : { background: `hsl(${h} 32% 15%)` }}
       title={name}
     >
       {src && !failed ? (
@@ -55,7 +55,7 @@ export default function TeamCrest({
         <img
           src={src}
           alt=""
-          className="h-full w-full object-contain p-1"
+          className="h-full w-full object-cover"
           onError={() => setFailed(true)}
           loading="lazy"
         />

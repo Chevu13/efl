@@ -25,13 +25,16 @@ const BOX: Record<Size, string> = {
 
 const PX: Record<Size, number> = { xs: 56, sm: 72, md: 96, lg: 128, xl: 192 };
 
-/** Portreti su kadrirani do struka — bez zuma glava ispadne sitna u krugu. */
+/**
+ * Portreti su kadrirani do ramena i sede na crnoj podlozi.
+ * Blag zum spusti lice u sredinu kruga; jak zum bi odsekao glavu.
+ */
 const ZOOM: Record<Size, string> = {
-  xs: 'scale-[1.75] translate-y-[15%]',
-  sm: 'scale-[1.75] translate-y-[15%]',
-  md: 'scale-[1.7] translate-y-[14%]',
-  lg: 'scale-[1.6] translate-y-[12%]',
-  xl: 'scale-[1.45] translate-y-[9%]'
+  xs: 'scale-[1.25] translate-y-[6%]',
+  sm: 'scale-[1.25] translate-y-[6%]',
+  md: 'scale-[1.25] translate-y-[6%]',
+  lg: 'scale-[1.12] translate-y-[3%]',
+  xl: 'scale-[1.05]'
 };
 
 /**
@@ -64,9 +67,15 @@ export default function PlayerPhoto({
       className={`relative shrink-0 overflow-hidden border bg-elev ${BOX[size]}
                   ${shape === 'round' ? 'rounded-full' : 'rounded-sm'}
                   ${ring ? 'border-brand' : 'border-line-2'} ${className}`}
-      style={{
-        backgroundImage: `radial-gradient(115% 100% at 50% 0%, hsl(${hue} 38% 20% / .9) 0%, transparent 72%)`
-      }}
+      /* Fotografije su izrezane na crnu — svaka druga podloga se vidi
+         kao oreol oko ramena. Monogram zadrzava boju tima. */
+      style={
+        src && !failed
+          ? { background: '#000' }
+          : {
+              backgroundImage: `radial-gradient(115% 100% at 50% 0%, hsl(${hue} 38% 20% / .9) 0%, transparent 72%)`
+            }
+      }
     >
       {src && !failed ? (
         <Image
@@ -87,8 +96,10 @@ export default function PlayerPhoto({
         </span>
       )}
 
-      {/* dijagonalna srafura — deo brend jezika, ne ukras */}
-      <span className="hatch pointer-events-none absolute inset-0 opacity-70" aria-hidden />
+      {/* srafura samo preko monograma, nikad preko fotografije */}
+      {!(src && !failed) && (
+        <span className="hatch pointer-events-none absolute inset-0 opacity-70" aria-hidden />
+      )}
     </div>
   );
 }

@@ -185,7 +185,7 @@ function rosterFor(code: string): Player[] {
       team_code: code,
       position,
       jersey,
-      photo: `/slike/players/${id}.png`
+      photo: `/slike/players/${id}.jpg`
     }));
   }
 

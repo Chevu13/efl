@@ -229,7 +229,7 @@
   .avatar > img {
     @apply absolute inset-0 h-full w-full object-cover;
     object-position: center top;
-    transform: scale(1.75) translateY(15%);
+    transform: scale(1.25) translateY(6%);
   }
   .avatar > i {
     @apply pointer-events-none absolute inset-0 opacity-70;

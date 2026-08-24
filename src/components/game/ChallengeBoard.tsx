@@ -53,7 +53,7 @@ export default function ChallengeBoard({
       return;
     }
     let alive = true;
-    fetch(`/api/listic?round_id=${round.id}`)
+    fetch(`/api/prognoza?round_id=${round.id}`)
       .then((r) => r.json())
       .then((d: { picks?: SavedPick[] }) => {
         if (!alive || !d.picks?.length) return;
@@ -98,14 +98,14 @@ export default function ChallengeBoard({
     );
 
     try {
-      const res = await fetch('/api/listic', {
+      const res = await fetch('/api/prognoza', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ round_id: round.id, picks })
       });
       if (!res.ok) {
         const out = (await res.json()) as { error?: string };
-        setError(out.error ?? 'Listic nije sacuvan.');
+        setError(out.error ?? 'Prognoza nije sacuvana.');
         return;
       }
       setSent(true);
@@ -118,7 +118,7 @@ export default function ChallengeBoard({
   }
 
   if (loading) {
-    return <div className="skel h-64 w-full rounded-md" aria-label="Ucitavanje listica" />;
+    return <div className="skel h-64 w-full rounded-md" aria-label="Ucitavanje prognoze" />;
   }
 
   if (sent) {
@@ -139,14 +139,14 @@ export default function ChallengeBoard({
               />
             </svg>
           </span>
-          <h3 className="mt-4 text-[22px] uppercase">Listic je poslat</h3>
+          <h3 className="mt-4 text-[22px] uppercase">Prognoza je poslata</h3>
           <p className="mt-2 max-w-sm text-small text-ink-3">
             Rezultati stizu posle poslednje utakmice kola. Devet od deset tacnih
             donosi PRO na sledece kolo.
           </p>
           {!locked && (
             <Button variant="ghost" className="mt-6" onClick={() => setSent(false)}>
-              Izmeni listic
+              Izmeni prognozu
             </Button>
           )}
         </div>
@@ -197,7 +197,7 @@ export default function ChallengeBoard({
 
       {locked && (
         <Alert tone="warn" title="Kolo je zakljucano">
-          Listic se vise ne moze poslati. Rezultati stizu posle poslednje utakmice.
+          Prognoza se vise ne moze poslati. Rezultati stizu posle poslednje utakmice.
         </Alert>
       )}
 
@@ -250,7 +250,7 @@ export default function ChallengeBoard({
                 Ostalo jos <b className="statmono text-ink">{left}</b> odgovora.
               </>
             ) : (
-              <b className="text-ink">Listic je popunjen.</b>
+              <b className="text-ink">Prognoza je popunjena.</b>
             )}
             <br />
             Zakljucava se na kraju roka za kolo.
@@ -261,7 +261,7 @@ export default function ChallengeBoard({
             </span>
           )}
           <Button onClick={submit} loading={busy} disabled={!!left}>
-            {loggedIn ? 'Posalji listic' : 'Prijavi se i posalji'}
+            {loggedIn ? 'Posalji prognozu' : 'Prijavi se i posalji'}
           </Button>
         </div>
       )}

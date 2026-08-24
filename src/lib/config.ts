@@ -39,7 +39,7 @@ export const PLANS: Plan[] = [
     code: 'PLUS',
     tier: 'PLUS',
     name: 'Plus',
-    priceCents: 499,
+    priceCents: 900,
     days: 30,
     pitch: 'Tri izbora kola i cela tabela igrača.',
     features: [
@@ -53,7 +53,7 @@ export const PLANS: Plan[] = [
     code: 'PRO',
     tier: 'PRO',
     name: 'Pro',
-    priceCents: 999,
+    priceCents: 1900,
     days: 30,
     featured: true,
     pitch: 'Svi igrači kola, forma, minuti i dubinska analiza.',
@@ -69,7 +69,7 @@ export const PLANS: Plan[] = [
     code: 'ULTRA',
     tier: 'ULTRA',
     name: 'Ultra',
-    priceCents: 1799,
+    priceCents: 2900,
     days: 30,
     pitch: 'Optimizator postave — sve zamene i razlog za svaku.',
     features: [
@@ -93,7 +93,11 @@ export const priceValue = (cents: number) => (cents / 100).toFixed(2);
 
 /**
  * Rezervni put: stara uplata bez oznake paketa. Iznos -> najviši paket
- * koji taj iznos pokriva. Izvodi se iz iste tabele cena, da se ne razilazi.
+ * koji taj iznos pokriva.
+ *
+ * Izvodi se iz iste tabele cena iznad. Ranije su cene stajale na dva
+ * mesta — u komponenti sa paketima i u webhook-u — pa je promena na
+ * jednom mestu tiho dodeljivala pogrešan paket. Sada je izvor jedan.
  */
 export function planForAmount(eur: number): Plan {
   const cents = Math.round(eur * 100);

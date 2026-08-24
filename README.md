@@ -152,7 +152,7 @@ select obracunaj_kolo(1);
 
 Slike idu u Supabase Storage, javni bucket `players`, grbovi u `logos`.
 Ime fajla mora da odgovara koloni `photo` u tabeli `players`
-(npr. `players/hayes-k-par.png`).
+(npr. `players/hayes-k-par.jpg`).
 
 ```bash
 # stavi fajlove u public/slike/players/ i public/slike/logos/, pa:

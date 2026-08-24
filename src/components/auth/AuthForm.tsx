@@ -49,7 +49,12 @@ export default function AuthForm() {
       ? await sb.auth.signUp({
           email,
           password,
-          options: { data: { username: username.trim() || email.split('@')[0] } }
+          options: {
+            data: { username: username.trim() || email.split('@')[0] },
+            /* Bez ovoga Supabase vraca kod na pocetnu, koja ne zna sta bi
+               s njim, pa potvrda naloga nikad ne prodje. */
+            emailRedirectTo: `${window.location.origin}/auth/callback`
+          }
         })
       : await sb.auth.signInWithPassword({ email, password });
 
@@ -61,7 +66,7 @@ export default function AuthForm() {
 
     const { data } = await sb.auth.getSession();
     if (!data.session) {
-      setInfo('Poslali smo ti mejl za potvrdu naloga. Otvori ga pa se vrati ovde.');
+      setInfo(`Poslali smo link na ${email}. Otvori ga da zavrsis registraciju.`);
       setBusy(false);
       return;
     }
