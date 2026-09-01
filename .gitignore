@@ -13,3 +13,6 @@ tsconfig.tsbuildinfo
 
 # graf koda — generisan, ne treba u repou
 graphify-out/
+
+# kes preuzetih pozicija — ponovo se skida
+.cache/
