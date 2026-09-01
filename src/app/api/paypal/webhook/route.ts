@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { alreadyProcessed, grantEntitlement, revokeEntitlement } from '@/lib/entitlements';
+import { alreadyProcessed, grantEntitlement, releaseEvent, revokeEntitlement } from '@/lib/entitlements';
 import { planForAmount } from '@/lib/config';
 import { decodeRef, verifyWebhook, webhookConfigured } from '@/lib/paypal/client';
 
@@ -125,7 +125,10 @@ export async function POST(req: Request) {
 
       if (!granted.ok) {
         console.error('[paypal/webhook] dodela nije uspela:', granted.error);
-        /* 500 -> PayPal ce pokusati ponovo, pa uplata nece propasti. */
+        /* 500 -> PayPal ce pokusati ponovo, pa uplata nece propasti. Oznaka
+           dogadjaja mora da padne s njom, inace bi ponovljena isporuka videla
+           obradjen dogadjaj i preskocila dodelu. */
+        await releaseEvent(event.id);
         return NextResponse.json({ error: granted.error }, { status: 500 });
       }
 
@@ -141,7 +144,12 @@ export async function POST(req: Request) {
     case 'PAYMENT.CAPTURE.DENIED': {
       const captureId = captureIdOf(res, event.event_type);
       if (captureId) {
-        await revokeEntitlement(captureId, event.event_type.split('.').pop()!.toLowerCase());
+        const razlog = event.event_type.split('.').pop()!.toLowerCase();
+        if (!(await revokeEntitlement(captureId, razlog))) {
+          console.error('[paypal/webhook] povlacenje prava nije uspelo:', captureId);
+          await releaseEvent(event.id);
+          return NextResponse.json({ error: 'Povlacenje nije uspelo.' }, { status: 500 });
+        }
       }
       return NextResponse.json({ ok: true, povuceno: !!captureId });
     }

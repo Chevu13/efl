@@ -140,6 +140,21 @@ export async function alreadyProcessed(eventId: string, eventType: string): Prom
   }
 }
 
+/**
+ * Skida oznaku dogadjaja kad obrada nije uspela.
+ *
+ * `alreadyProcessed` upisuje oznaku pre posla, pa bi bez ovoga ponovljena
+ * isporuka nasla oznaku i preskocila dodelu koja nikad nije prosla.
+ */
+export async function releaseEvent(eventId?: string): Promise<void> {
+  if (!eventId) return;
+  try {
+    await createAdminClient().from('paypal_events').delete().eq('id', eventId);
+  } catch {
+    /* Tabele nema ili baza ne odgovara — dodela je i sama zasticena preko paypal_id. */
+  }
+}
+
 /** Otkazivanje ili povracaj — pravo se gasi od tog trenutka. */
 export async function revokeEntitlement(paypalId: string, reason: string): Promise<boolean> {
   try {
