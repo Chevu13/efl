@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "slike": "node scripts/upload-slike.mjs"
+    "slike": "node scripts/upload-slike.mjs",
+    "paypal": "node scripts/paypal-provera.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
