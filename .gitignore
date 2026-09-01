@@ -10,3 +10,6 @@ next-env.d.ts
 
 # build artifact — ne treba u repou
 tsconfig.tsbuildinfo
+
+# graf koda — generisan, ne treba u repou
+graphify-out/
