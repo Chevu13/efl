@@ -185,11 +185,12 @@ export const getMyTier = cache(async (): Promise<Me> => {
   if (!user) return { email: null, username: null, tier: 'FREE', userId: null };
 
   const { data } = await sb.rpc('moj_tier', { uid: user.id });
-  const meta = user.user_metadata as { username?: string } | null;
+  /* `full_name` stize uz Google prijavu — tamo nema naseg polja za ime. */
+  const meta = user.user_metadata as { username?: string; full_name?: string } | null;
 
   return {
     email: user.email ?? null,
-    username: meta?.username ?? user.email?.split('@')[0] ?? null,
+    username: meta?.username ?? meta?.full_name ?? user.email?.split('@')[0] ?? null,
     tier: ((data as Tier) ?? 'FREE') as Tier,
     userId: user.id
   };

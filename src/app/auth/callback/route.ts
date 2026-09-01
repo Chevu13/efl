@@ -9,7 +9,9 @@ import { createClient } from '@/lib/supabase/server';
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
-  const next = searchParams.get('next') ?? '/igra';
+  /* Samo interne adrese — spoljna bi ovo pretvorila u otvoreno preusmerenje. */
+  const trazeno = searchParams.get('next') ?? '/igra';
+  const next = trazeno.startsWith('/') && !trazeno.startsWith('//') ? trazeno : '/igra';
 
   // Supabase ume da vrati i grešku direktno u adresi
   const err = searchParams.get('error_description') ?? searchParams.get('error');

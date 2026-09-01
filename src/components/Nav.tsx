@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Logomark from './brand/Logomark';
 import CodeDialog from './nav/CodeDialog';
@@ -32,7 +32,6 @@ export default function Nav({
   round?: { number: number; deadline: string | null } | null;
 }) {
   const path = usePathname();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [codeOpen, setCodeOpen] = useState(false);
   const premium = isPremium(tier);
@@ -54,8 +53,9 @@ export default function Nav({
   async function signOut() {
     await createClient().auth.signOut();
     setOpen(false);
-    router.refresh();
-    router.push('/');
+    /* Tvrda navigacija — zaglavlje se crta na serveru, a kes rutera bi vratio
+       verziju u kojoj je korisnik jos prijavljen. */
+    window.location.assign('/');
   }
 
   const deadline = untilLabel(round?.deadline);
