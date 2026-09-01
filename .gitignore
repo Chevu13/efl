@@ -16,3 +16,6 @@ graphify-out/
 
 # kes preuzetih pozicija — ponovo se skida
 .cache/
+
+# Supabase CLI privremeni fajlovi
+supabase/.temp/

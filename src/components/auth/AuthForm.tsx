@@ -36,37 +36,33 @@ export default function AuthForm() {
   const [username, setUsername] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [info, setInfo] = useState('');
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError('');
-    setInfo('');
 
     const sb = createClient();
-    const { error: err } = reg
-      ? await sb.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { username: username.trim() || email.split('@')[0] },
-            /* Bez ovoga Supabase vraca kod na pocetnu, koja ne zna sta bi
-               s njim, pa potvrda naloga nikad ne prodje. */
-            emailRedirectTo: `${window.location.origin}/auth/callback`
-          }
-        })
-      : await sb.auth.signInWithPassword({ email, password });
 
-    if (err) {
-      setError(prevedi(err.message));
-      setBusy(false);
-      return;
+    /* Nalog pravi server i odmah ga potvrdjuje — mejl sa linkom ne stize
+       pouzdano, pa bi registracija inace stala na pola. */
+    if (reg) {
+      const odgovor = await fetch('/api/registracija', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, username })
+      });
+      if (!odgovor.ok) {
+        const { greska } = (await odgovor.json().catch(() => ({}))) as { greska?: string };
+        setError(prevedi(greska ?? 'Registracija nije uspela. Probaj ponovo.'));
+        setBusy(false);
+        return;
+      }
     }
 
-    const { data } = await sb.auth.getSession();
-    if (!data.session) {
-      setInfo(`Poslali smo link na ${email}. Otvori ga da zavrsis registraciju.`);
+    const { error: err } = await sb.auth.signInWithPassword({ email, password });
+    if (err) {
+      setError(prevedi(err.message));
       setBusy(false);
       return;
     }
@@ -145,7 +141,6 @@ export default function AuthForm() {
             {error}
           </Alert>
         )}
-        {info && <Alert tone="ok">{info}</Alert>}
 
         <Button type="submit" loading={busy} disabled={!email || !password} full size="lg">
           {reg ? 'Napravi nalog' : 'Prijavi se'}
@@ -162,7 +157,6 @@ export default function AuthForm() {
         onClick={() => {
           setReg(!reg);
           setError('');
-          setInfo('');
         }}
         className="btn-ghost btn-md mt-4 w-full"
       >

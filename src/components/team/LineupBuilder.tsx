@@ -8,7 +8,7 @@ import MatchupPill from '../player/MatchupPill';
 import TeamCrest from '../TeamCrest';
 import Segmented from '../ui/Segmented';
 import { Button } from '../ui/Button';
-import { Alert, Chip, EmptyState, Hint } from '../ui/primitives';
+import { Alert, Chip, Hint } from '../ui/primitives';
 import { FormBars } from '../ui/Stat';
 import { useLineup } from '@/lib/useLineup';
 import {
@@ -245,37 +245,25 @@ export default function LineupBuilder({
         )}
 
         {/* ---------------- teren ---------------- */}
-        <div className="mt-5">
-          {resolved.all.length === 0 && !resolved.coach ? (
-            <EmptyState
-              title="Postava je prazna"
-              desc={`Izaberi ${LINEUP.squad.G} beka, ${LINEUP.squad.F} krila, ${LINEUP.squad.C} centra i trenera u okviru ${LINEUP.budget} kredita — ili pusti da ti alat predlozi polaznu postavu.`}
-              action={
-                <Button onClick={() => save(autoBuild(pool, coaches))}>Predlozi mi postavu</Button>
-              }
-            />
-          ) : (
-            <div className="space-y-5">
-              <CourtLineup
-                state={state}
-                resolved={resolved}
-                teams={teams}
-                onRemove={(id) => update((s) => removePlayer(s, id))}
-                onSetCaptain={(id) => update((s) => setCaptain(s, id))}
-                onDemote={(id, to) => update((s) => demote(s, id, to))}
-                onEmptyClick={focusPool}
-                onCoachClick={openCoaches}
-              />
+        <div className="mt-5 space-y-5">
+          <CourtLineup
+            state={state}
+            resolved={resolved}
+            teams={teams}
+            onRemove={(id) => update((s) => removePlayer(s, id))}
+            onSetCaptain={(id) => update((s) => setCaptain(s, id))}
+            onDemote={(id, to) => update((s) => demote(s, id, to))}
+            onEmptyClick={focusPool}
+            onCoachClick={openCoaches}
+          />
 
-              <BenchRow
-                resolved={resolved}
-                teams={teams}
-                onRemove={(id) => update((s) => removePlayer(s, id))}
-                onPromote={(id) => update((s) => promote(s, resolved, id))}
-                onEmptyClick={() => focusPool('G')}
-              />
-            </div>
-          )}
+          <BenchRow
+            resolved={resolved}
+            teams={teams}
+            onRemove={(id) => update((s) => removePlayer(s, id))}
+            onPromote={(id) => update((s) => promote(s, resolved, id))}
+            onEmptyClick={() => focusPool('G')}
+          />
         </div>
 
         {/* ---------------- razrada bodova ---------------- */}
