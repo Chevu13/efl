@@ -72,6 +72,10 @@ export const teamName = (
 ) => (!code ? '' : sr ? (teams[code]?.name_sr ?? code.toUpperCase()) : (teams[code]?.name_en ?? code.toUpperCase()));
 
 /** Kratka oznaka tima za tabele — tri slova, uvek velika. */
+/** 1 utakmica, 2-4 utakmice, 5+ utakmica. */
+export const mecevi = (n: number) =>
+  `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'utakmica' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'utakmice' : 'utakmica'}`;
+
 export const teamTag = (code?: string | null) => (code ? code.toUpperCase().slice(0, 3) : '—');
 
 /* ------------------------------------------------------------------ */

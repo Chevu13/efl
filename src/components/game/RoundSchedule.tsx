@@ -7,7 +7,7 @@ import PlayerIdentity from '../player/PlayerIdentity';
 import Leaderboard from './Leaderboard';
 import { Button } from '../ui/Button';
 import { Alert, RowDivider } from '../ui/primitives';
-import { dayLabel, num, untilLabel } from '@/lib/format';
+import { dayLabel, mecevi, num, untilLabel } from '@/lib/format';
 import type {
   ChallengeLine,
   Fixture,
@@ -215,8 +215,8 @@ export default function RoundSchedule({
               title={label ? label.date : 'Termin nije zakazan'}
               meta={
                 label
-                  ? `${label.weekday} · ${byDay[day].length} utakmica`
-                  : `${byDay[day].length} utakmica`
+                  ? `${label.weekday} · ${mecevi(byDay[day].length)}`
+                  : mecevi(byDay[day].length)
               }
             />
             <div className="mt-4 overflow-hidden rounded-md border border-line bg-surface">

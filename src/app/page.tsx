@@ -8,7 +8,7 @@ import { Chip, Meter, RowDivider, SectionHead } from '@/components/ui/primitives
 import { Delta, FormBars } from '@/components/ui/Stat';
 import { LinkButton } from '@/components/ui/Button';
 import { getCurrentRound, getFixtures, getMyTier, getPricedPlayers, getTeams } from '@/lib/data';
-import { num, signed, teamName, untilLabel, valueClass } from '@/lib/format';
+import { mecevi, num, signed, teamName, untilLabel, valueClass } from '@/lib/format';
 import { PLANS, priceLabel } from '@/lib/config';
 import { isPremium } from '@/lib/types';
 
@@ -150,7 +150,7 @@ export default async function Home() {
           <SectionHead
             eyebrow="Rang liste kola"
             title="Ko vredi svoju cenu"
-            desc="Vrednost je projekcija podeljena cenom. Sto je broj veci, to vise poena dobijas po kreditu — a upravo tu se dobijaju kola."
+            desc="Vrednost je odstupanje od cene: 5 znaci da igrac tacno opravdava svoju cenu, sve iznad je dobitak. Tu se dobijaju kola."
             action={
               <LinkButton href="/igraci" variant="ghost" size="sm">
                 Svi izbori kola
@@ -337,7 +337,7 @@ export default async function Home() {
       {fixtures.length > 0 && (
         <section className="border-t border-line bg-sunken">
           <div className="page py-14">
-            <RowDivider title={`${round?.number ?? ''}. kolo — mecevi`} meta={`${fixtures.length} utakmica`} />
+            <RowDivider title={`${round?.number ?? ''}. kolo — mecevi`} meta={mecevi(fixtures.length)} />
             <div className="mt-4 overflow-hidden rounded-md border border-line bg-surface">
               {fixtures.slice(0, 4).map((f) => (
                 <FixtureRow

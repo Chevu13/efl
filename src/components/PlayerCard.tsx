@@ -102,7 +102,7 @@ export default function PlayerCard({
         {/* vrednost kao traka + rec, ne samo boja */}
         <div className="mt-4">
           <div className="mb-1.5 flex items-center justify-between">
-            <span className="label">Odnos cene i projekcije</span>
+            <span className="label">Plus od cene</span>
             <span className={`font-mono text-[11px] font-bold uppercase ${valueClass(p.value_score)}`}>
               {valueWord[band]}
             </span>

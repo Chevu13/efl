@@ -13,7 +13,7 @@ import type { PricedPlayer, Team, Tier } from '@/lib/types';
 type SortKey = 'value_score' | 'projected' | 'price' | 'season_avg' | 'ownership' | 'matchup_score';
 
 const SORTS: { key: SortKey; label: string; hint: string }[] = [
-  { key: 'value_score', label: 'Vrednost', hint: 'Koliko projektovanih poena dobijas po kreditu cene.' },
+  { key: 'value_score', label: 'Vrednost', hint: 'Koliko igrac ide plus od svoje cene. 5 znaci tacno po ceni.' },
   { key: 'projected', label: 'Projekcija', hint: 'Ocekivani fantasy poeni u ovom kolu.' },
   { key: 'price', label: 'Cena', hint: 'Cena igraca u kreditima za ovo kolo.' },
   { key: 'season_avg', label: 'Prosek', hint: 'Prosecan ucinak u poslednjih pet kola.' },
@@ -203,7 +203,7 @@ export default function PlayerTable({
                     <Hint text="Ocekivani fantasy poeni u ovom kolu.">Proj.</Hint>
                   </th>
                   <th scope="col" className="text-right">
-                    <Hint text="Koliko projektovanih poena dobijas po kreditu cene.">Vred.</Hint>
+                    <Hint text="Koliko igrac ide plus od svoje cene. 5 znaci tacno po ceni.">Vred.</Hint>
                   </th>
                   <th scope="col" className="hidden text-right xl:table-cell">
                     <Hint text="Procenat menadzera koji ga vec ima u timu.">Vlas.</Hint>
@@ -287,8 +287,8 @@ export default function PlayerTable({
 
       {tier && (
         <p className="mt-3 text-[11.5px] text-ink-4">
-          Tvoj paket: <b className="text-ink-3">{tier}</b> · vrednost se racuna kao projekcija
-          podeljena cenom, skalirano na 10.
+          Tvoj paket: <b className="text-ink-3">{tier}</b> · vrednost je koliko igrac ide plus od
+          svoje cene — 5 je tacno po ceni, vise je dobitak.
         </p>
       )}
     </div>
