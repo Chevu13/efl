@@ -25,7 +25,7 @@ export default function Prijava() {
         <div className="datagrid pointer-events-none absolute inset-0 opacity-60" aria-hidden />
 
         <div className="relative flex h-full flex-col justify-between p-10 xl:p-14">
-          <Lockup variant="stacked" size={54} />
+          <Lockup variant="wide" size={54} />
 
           <div className="max-w-md">
             <h2 className="text-[clamp(26px,3vw,40px)] uppercase leading-[1.05]">

@@ -14,7 +14,7 @@ export default function SiteFooter({ demo }: { demo: boolean }) {
     <footer className="border-t border-line bg-sunken">
       <div className="page grid gap-10 py-12 md:grid-cols-[1fr_auto]">
         <div>
-          <Lockup variant="stacked" size={44} />
+          <Lockup variant="wide" size={44} />
           <p className="mt-5 max-w-sm text-small leading-relaxed text-ink-3">
             {SITE.tagline} Analitika za EuroLeague Fantasy — cena, projekcija,
             tezina protivnika i vrednost, za svako kolo.

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Logomark from './brand/Logomark';
+import Wordmark from './brand/Wordmark';
 import CodeDialog from './nav/CodeDialog';
 import { ACCOUNT, PRIMARY, isActive } from './nav/links';
 import { createClient } from '@/lib/supabase/client';
@@ -78,12 +79,8 @@ export default function Nav({
             aria-label="Euro Fantasy Lab — pocetna"
             className="flex shrink-0 items-center gap-2.5 transition-opacity duration-fast hover:opacity-85"
           >
-            <Logomark size={30} />
-            <span className="hidden font-display text-[17px] font-extrabold uppercase leading-none tracking-[-0.01em] sm:block">
-              <span className="text-ink">Euro</span>
-              <span className="text-brand">Fantasy</span>
-              <span className="text-ink">Lab</span>
-            </span>
+            <Logomark size={32} />
+            <Wordmark height={30} className="hidden sm:block" />
           </Link>
 
           {/* glavne oblasti */}
