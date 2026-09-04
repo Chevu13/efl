@@ -56,7 +56,7 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const [{ email, username, tier }, round, demo] = await Promise.all([
+  const [{ email, username, tier, avatar }, round, demo] = await Promise.all([
     getMyTier(),
     getCurrentRound(),
     isDemoData()
@@ -68,6 +68,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <Nav
           email={email}
           username={username}
+          avatar={avatar}
           tier={tier}
           round={round ? { number: round.number, deadline: round.deadline } : null}
         />

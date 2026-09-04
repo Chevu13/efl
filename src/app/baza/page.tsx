@@ -32,7 +32,11 @@ export default async function Baza() {
 
   const priced = round ? await getPricedPlayers(round.id) : [];
   const premium = isPremium(tier);
-  const visible = premium ? priced : priced.slice(0, 15);
+  /* Cela baza sa projekcijom za svakog igraca je ono sto Ultra kupuje.
+     Nizi paketi dobijaju izbore kola na /igraci; ovde vide pocetak liste,
+     a ostatak ne napusta server. */
+  const svi = tier === 'ULTRA';
+  const visible = svi ? priced : priced.slice(0, premium ? 30 : 15);
 
   const byTeam = players.reduce<Record<string, typeof players>>((acc, p) => {
     (acc[p.team_code ?? '—'] ||= []).push(p);
@@ -81,7 +85,7 @@ export default async function Baza() {
               totalCount={priced.length}
               teams={teams}
               tier={tier}
-              need={NEXT_TIER[tier]}
+              need={svi ? undefined : 'ULTRA'}
             />
           </div>
         </section>

@@ -410,16 +410,6 @@ val.forEach((o) =>
 /* 8. UPIS                                                             */
 /* ------------------------------------------------------------------ */
 
-/* Prva tri po razlici projekcija-cena su izbori kola; prvi je besplatan.
-   Razlika, a ne value_score, jer je to broj koji stoji na naslovnoj i na
-   vrhu tabele — izbor kola mora da se poklopi sa onim sto lista kaze. */
-const ranked = [...writable]
-  .filter((o) => o.projected > 0)
-  .sort((a, b) => b.projected - b.price - (a.projected - a.price));
-ranked.forEach((o, i) => {
-  o.tier_pick = i === 0 ? 'FREE' : i < 3 ? 'PLUS' : i < 12 ? 'PRO' : null;
-});
-
 /* Poslednja odbrana: dva reda sa istim player_id obaraju ceo upis
    (`ON CONFLICT ... cannot affect row a second time`). Zadrzava se onaj
    sa vecom projekcijom. */
@@ -432,6 +422,82 @@ if (byId.size < writable.length) {
   log(`
 upozorenje: ${writable.length - byId.size} duplih player_id — zadrzan red sa vecom projekcijom`);
 }
+
+/* ------------------------------------------------------------------ */
+/* IZBORI KOLA                                                         */
+/*                                                                     */
+/* Nije lista od trinaest najboljih. Paketi se razlikuju po tome KOJI   */
+/* deo terena i koje cene pokrivaju, pa se izbori dele u pretince:      */
+/*                                                                     */
+/*   FREE   1  najveca razlika u kolu, bez obzira na poziciju i cenu    */
+/*   PLUS   3  po jedan iz svakog cenovnog ranga                        */
+/*   PRO    9  svaka pozicija puta svaki cenovni rang                   */
+/*                                                                     */
+/* Jedan igrac moze da bude samo u jednom pretincu — ko je vec uzet za  */
+/* nizi paket ne racuna se ponovo, inace bi PLUS i PRO gledali iste     */
+/* karte pod drugim imenom.                                            */
+/* ------------------------------------------------------------------ */
+
+const RANG = (cena) => (cena < 8 ? 'jeftin' : cena < 12 ? 'srednji' : 'skup');
+const RANGOVI = ['skup', 'srednji', 'jeftin'];
+const POZICIJE = ['G', 'F', 'C'];
+
+const ranked = [...byId.values()]
+  .filter((o) => o.projected > 0)
+  .sort((a, b) => b.projected - b.price - (a.projected - a.price));
+
+const uzet = new Set();
+const uzmi = (uslov) => {
+  const o = ranked.find((x) => !uzet.has(x.player_id) && uslov(x));
+  if (o) uzet.add(o.player_id);
+  return o;
+};
+
+/* 1) besplatan izbor */
+const free = uzmi(() => true);
+if (free) {
+  free.tier_pick = 'FREE';
+  free.pick_group = RANG(free.price);
+}
+
+/* 2) Plus — po jedan iz svakog cenovnog ranga */
+for (const rang of RANGOVI) {
+  const o = uzmi((x) => RANG(x.price) === rang);
+  if (o) {
+    o.tier_pick = 'PLUS';
+    o.pick_group = rang;
+  }
+}
+
+/* 3) Pro — mreza pozicija x rang */
+for (const poz of POZICIJE) {
+  for (const rang of RANGOVI) {
+    const o = uzmi((x) => x._pos === poz && RANG(x.price) === rang);
+    if (o) {
+      o.tier_pick = 'PRO';
+      o.pick_group = `${poz}-${rang}`;
+    }
+  }
+}
+
+head('IZBORI KOLA');
+log('paket  grupa        igrac                        tim   cena   proj  razlika');
+log('-'.repeat(76));
+[...byId.values()]
+  .filter((o) => o.tier_pick)
+  .sort((a, b) => {
+    const red = { FREE: 0, PLUS: 1, PRO: 2 };
+    return red[a.tier_pick] - red[b.tier_pick] || (a.pick_group > b.pick_group ? 1 : -1);
+  })
+  .forEach((o) =>
+    log(
+      `${o.tier_pick.padEnd(6)} ${String(o.pick_group).padEnd(12)} ` +
+        `${o._name.slice(0, 28).padEnd(28)} ${o._team.padEnd(4)} ` +
+        `${String(o.price).padStart(5)} ${String(o.projected).padStart(6)} ` +
+        `${r1(o.projected - o.price).toFixed(1).padStart(8)}`
+    )
+  );
+
 const razlika = [...out]
   .filter((o) => o.projected > 0)
   .sort((a, b) => b.projected - b.price - (a.projected - a.price))

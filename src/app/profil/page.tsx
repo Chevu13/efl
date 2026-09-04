@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import PricingTable from '@/components/premium/PricingTable';
+import AvatarUpload from '@/components/profil/AvatarUpload';
 import { SectionHead, Chip, EmptyState, Alert } from '@/components/ui/primitives';
 import { StatStrip } from '@/components/ui/Stat';
 import { LinkButton } from '@/components/ui/Button';
@@ -58,13 +59,7 @@ export default async function Profil() {
       <section className="relative overflow-hidden rounded-md border border-line bg-gradient-to-b from-surface to-sunken">
         <div className="hatch pointer-events-none absolute inset-0 opacity-50" aria-hidden />
         <div className="relative flex flex-wrap items-center gap-5 p-6 sm:p-8">
-          <span
-            className="grid h-16 w-16 shrink-0 place-items-center rounded-full border border-line-2
-                       bg-elev font-display text-[26px] font-extrabold uppercase text-ink-2"
-            aria-hidden
-          >
-            {(me.username ?? me.email ?? '?')[0]}
-          </span>
+          <AvatarUpload avatar={me.avatar} fallback={(me.username ?? me.email ?? '?')[0]} />
 
           <div className="min-w-0 flex-1">
             <p className="eyebrow">Nalog</p>

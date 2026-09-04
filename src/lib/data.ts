@@ -175,6 +175,8 @@ export type Me = {
   username: string | null;
   tier: Tier;
   userId: string | null;
+  /** Putanja u Storage-u, ili puna adresa ako stize od Google-a. */
+  avatar: string | null;
 };
 
 export const getMyTier = cache(async (): Promise<Me> => {
@@ -183,17 +185,24 @@ export const getMyTier = cache(async (): Promise<Me> => {
     data: { user }
   } = await sb.auth.getUser();
 
-  if (!user) return { email: null, username: null, tier: 'FREE', userId: null };
+  if (!user) return { email: null, username: null, tier: 'FREE', userId: null, avatar: null };
 
   const { data } = await sb.rpc('moj_tier', { uid: user.id });
   /* `full_name` stize uz Google prijavu — tamo nema naseg polja za ime. */
-  const meta = user.user_metadata as { username?: string; full_name?: string } | null;
+  const meta = user.user_metadata as {
+    username?: string;
+    full_name?: string;
+    avatar?: string | null;
+    /* Google salje svoju sliku pod ovim imenom. */
+    avatar_url?: string | null;
+  } | null;
 
   return {
     email: user.email ?? null,
     username: meta?.username ?? meta?.full_name ?? user.email?.split('@')[0] ?? null,
     tier: ((data as Tier) ?? 'FREE') as Tier,
-    userId: user.id
+    userId: user.id,
+    avatar: meta?.avatar ?? meta?.avatar_url ?? null
   };
 });
 

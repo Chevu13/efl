@@ -8,7 +8,7 @@ import Wordmark from './brand/Wordmark';
 import CodeDialog from './nav/CodeDialog';
 import { ACCOUNT, PRIMARY, isActive } from './nav/links';
 import { createClient } from '@/lib/supabase/client';
-import { untilLabel } from '@/lib/format';
+import { storageUrl, untilLabel } from '@/lib/format';
 import { isPremium, type Tier } from '@/lib/types';
 
 /**
@@ -24,11 +24,13 @@ import { isPremium, type Tier } from '@/lib/types';
 export default function Nav({
   email,
   username,
+  avatar,
   tier,
   round
 }: {
   email: string | null;
   username: string | null;
+  avatar?: string | null;
   tier: Tier;
   round?: { number: number; deadline: string | null } | null;
 }) {
@@ -146,11 +148,16 @@ export default function Nav({
                 <Link
                   href="/profil"
                   aria-label="Profil"
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-line-2
-                             bg-elev font-mono text-[12px] font-bold uppercase text-ink-2
-                             transition-colors duration-fast hover:border-brand hover:text-ink"
+                  className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full
+                             border border-line-2 bg-elev font-mono text-[12px] font-bold uppercase
+                             text-ink-2 transition-colors duration-fast hover:border-brand hover:text-ink"
                 >
-                  {(username ?? email)[0]}
+                  {storageUrl(avatar) ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={storageUrl(avatar)!} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    (username ?? email)[0]
+                  )}
                 </Link>
               </>
             ) : (

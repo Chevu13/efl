@@ -306,7 +306,7 @@ function LineCard({
   return (
     <article
       className={`panel flex flex-col gap-3 p-4 transition-colors duration-fast
-                  ${value ? 'border-brand/60' : 'hover:border-line-2'}`}
+                  ${value ? 'border-brand bg-brand/[.04]' : 'hover:border-line-2'}`}
     >
       <PlayerIdentity player={line.players} teams={teams} size="md" />
 
@@ -324,15 +324,22 @@ function LineCard({
               onClick={() => onPick(side)}
               disabled={disabled}
               aria-pressed={on}
+              /* Izabrano mora da se vidi bez trazenja: puna narandzasta,
+                 crn tekst, prsten oko dugmeta i neizabrano prigusi. */
               className={`inline-flex h-11 items-center justify-center gap-1.5 rounded-sm border
-                          text-[12.5px] font-bold uppercase tracking-wide transition-colors duration-fast
+                          text-[12.5px] font-bold uppercase tracking-wide transition-all duration-fast
                           disabled:opacity-40
                           ${on
-                            ? 'border-brand bg-brand text-black'
-                            : 'border-line text-ink-3 hover:border-line-2 hover:bg-elev hover:text-ink'}`}
+                            ? 'border-brand bg-brand text-black shadow-[0_0_0_3px_rgb(223_99_32/.28)]'
+                            : value
+                              ? 'border-line bg-transparent text-ink-4 hover:border-line-2 hover:text-ink-3'
+                              : 'border-line text-ink-3 hover:border-line-2 hover:bg-elev hover:text-ink'}`}
             >
               <span aria-hidden>{side === 'over' ? '▲' : '▼'}</span>
               {side === 'over' ? 'Iznad' : 'Ispod'}
+              {on && (
+                <span className="sr-only"> — izabrano</span>
+              )}
             </button>
           );
         })}

@@ -136,11 +136,13 @@ export default function FixtureRow({
                   disabled={pickDisabled}
                   aria-pressed={on}
                   className={`inline-flex h-11 items-center justify-center gap-2 truncate rounded-sm border
-                              px-3 text-[12.5px] font-semibold transition-colors duration-fast
+                              px-3 text-[12.5px] font-semibold transition-all duration-fast
                               disabled:opacity-40
                               ${on
-                                ? 'border-brand bg-brand text-black'
-                                : 'border-line text-ink-3 hover:border-line-2 hover:bg-elev hover:text-ink'}`}
+                                ? 'border-brand bg-brand font-bold text-black shadow-[0_0_0_3px_rgb(223_99_32/.28)]'
+                                : pick
+                                  ? 'border-line text-ink-4 hover:border-line-2 hover:text-ink-3'
+                                  : 'border-line text-ink-3 hover:border-line-2 hover:bg-elev hover:text-ink'}`}
                 >
                   {on && <span aria-hidden>✓</span>}
                   <TeamCrest team={teams[code]} code={code} s="xs" />
