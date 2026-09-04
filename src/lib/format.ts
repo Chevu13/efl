@@ -76,6 +76,15 @@ export const teamName = (
 export const mecevi = (n: number) =>
   `${n} ${n % 10 === 1 && n % 100 !== 11 ? 'utakmica' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'utakmice' : 'utakmica'}`;
 
+/**
+ * Razlika izmedju projekcije i cene — koliko poena igrac donosi preko
+ * onoga sto kosta. Nije isto sto i `value_score`: ovo je sirov visak i
+ * sistematski favorizuje skupe igrace, jer liga u proseku vraca oko 1,34
+ * poena po kreditu. Zato stoje obe brojke.
+ */
+export const edge = (p: { projected: number | null; price: number | null }) =>
+  p.projected == null || p.price == null ? null : p.projected - p.price;
+
 export const teamTag = (code?: string | null) => (code ? code.toUpperCase().slice(0, 3) : '—');
 
 /* ------------------------------------------------------------------ */

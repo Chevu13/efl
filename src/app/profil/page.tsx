@@ -4,7 +4,14 @@ import PricingTable from '@/components/premium/PricingTable';
 import { SectionHead, Chip, EmptyState, Alert } from '@/components/ui/primitives';
 import { StatStrip } from '@/components/ui/Stat';
 import { LinkButton } from '@/components/ui/Button';
-import { activeSubscription, getMyEntries, getMySubscriptions, getMyTier } from '@/lib/data';
+import {
+  activeSubscription,
+  getCurrentRound,
+  getMyEntries,
+  getMyPicks,
+  getMySubscriptions,
+  getMyTier
+} from '@/lib/data';
 import { paypalConfigured, paypalEnv } from '@/lib/paypal/client';
 import { PLANS, planByCode } from '@/lib/config';
 import { dateShort, pct, untilLabel } from '@/lib/format';
@@ -28,7 +35,12 @@ export default async function Profil() {
   const me = await getMyTier();
   if (!me.userId) redirect('/prijava?next=%2Fprofil');
 
-  const [subs, entries] = await Promise.all([getMySubscriptions(), getMyEntries()]);
+  const [subs, entries, round] = await Promise.all([
+    getMySubscriptions(),
+    getMyEntries(),
+    getCurrentRound()
+  ]);
+  const picks = round ? await getMyPicks(round.id) : [];
 
   const active = activeSubscription(subs);
   const premium = isPremium(me.tier);
@@ -102,13 +114,6 @@ export default async function Profil() {
       <StatStrip
         className="mt-6"
         items={[
-          {
-            label: 'Tacnost',
-            value: accuracy != null ? pct(accuracy) : '—',
-            tone: accuracy != null ? 'brand' : 'muted',
-            hint: 'Procenat tacnih odgovora u svim odigranim listicima.'
-          },
-          { label: 'Odigrano kola', value: String(entries.length) },
           { label: 'Tacnih odgovora', value: `${totals.correct}/${totals.total}` },
           {
             label: 'Uplata',
@@ -116,6 +121,95 @@ export default async function Profil() {
           }
         ]}
       />
+
+      {/* ---------------- izazov kola ---------------- */}
+      <section className="mt-14">
+        <SectionHead
+          eyebrow="Izazov"
+          title="Moji odabiri"
+          desc="Sta si tipovao u tekucem kolu i kako su prosla ranija. Listic se salje sa strane Izazov kola."
+          action={
+            <LinkButton href="/raspored" variant="ghost" size="sm">
+              Izazov kola
+            </LinkButton>
+          }
+        />
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_320px] lg:items-start">
+          <div className="overflow-hidden rounded-md border border-line">
+            <div className="flex items-center justify-between border-b border-line bg-sunken px-4 py-2.5">
+              <span className="label">{round ? `${round.number}. kolo` : 'Tekuce kolo'}</span>
+              <Chip tone={picks.length ? 'brand' : 'default'}>
+                {picks.length ? `${picks.length} odgovora` : 'nije poslato'}
+              </Chip>
+            </div>
+
+            {picks.length === 0 ? (
+              <div className="p-4">
+                <EmptyState
+                  title="Jos nisi tipovao ovo kolo"
+                  desc="Pogodi ko prelazi granicu i ko pobedjuje — listic se racuna kad se kolo odigra."
+                  action={
+                    <LinkButton href="/raspored" variant="ghost">
+                      Otvori izazov
+                    </LinkButton>
+                  }
+                />
+              </div>
+            ) : (
+              <ul className="divide-y divide-line">
+                {picks.map((p) => (
+                  <li key={p.id} className="flex items-center gap-3 px-4 py-3">
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[14px] font-semibold">{p.subject}</span>
+                      <span className="block text-[11.5px] text-ink-3">{p.detail}</span>
+                    </span>
+                    <span className="statmono shrink-0 text-[13px] text-ink-2">{p.answer}</span>
+                    <span className="w-16 shrink-0 text-right font-mono text-[11px] uppercase">
+                      {p.correct == null ? (
+                        <span className="text-ink-4">ceka</span>
+                      ) : (
+                        <span className={p.correct ? 'font-bold text-ok' : 'text-ink-4'}>
+                          {p.correct ? 'tacno' : 'promasaj'}
+                        </span>
+                      )}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="panel p-4">
+            <div className="flex items-baseline justify-between">
+              <span className="label">Sezonska tacnost</span>
+              <span
+                className={`stat text-[28px] leading-none ${
+                  accuracy != null ? 'text-brand' : 'text-ink-4'
+                }`}
+              >
+                {accuracy != null ? pct(accuracy) : '—'}
+              </span>
+            </div>
+            <p className="mt-1.5 text-[11.5px] text-ink-3">
+              {entries.length} odigranih kola · {totals.correct}/{totals.total} tacnih
+            </p>
+
+            {entries.length > 0 && (
+              <ul className="mt-4 divide-y divide-line border-t border-line">
+                {entries.map((e) => (
+                  <li key={e.id} className="flex items-center justify-between py-2">
+                    <span className="text-[12.5px] text-ink-3">{e.round_id}. kolo</span>
+                    <span className="statmono text-[12.5px]">
+                      {e.correct ?? '—'}/{e.total ?? '—'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* ---------------- paketi ---------------- */}
       <section id="paketi" className="mt-14 scroll-mt-[calc(var(--nav-h)+24px)]">

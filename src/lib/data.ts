@@ -1,6 +1,7 @@
 import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import * as mock from './mock';
+import { teamName } from './format';
 import { TIER_RANK } from './types';
 import type {
   ChallengeLine,
@@ -247,4 +248,84 @@ export async function getMyEntries() {
     .limit(20);
   if (error) return [];
   return (data ?? []) as { id: number; round_id: number; correct: number | null; total: number | null }[];
+}
+
+/* ------------------------------------------------------------------ */
+/* IZAZOV KOLA — sta je korisnik tipovao                               */
+/* ------------------------------------------------------------------ */
+
+export type MyPick = {
+  id: string;
+  /** Ime igraca ili „Domacin — Gost”. */
+  subject: string;
+  /** Granica, ili sta se tipuje na mecu. */
+  detail: string;
+  answer: string;
+  /** null dok kolo nije odigrano i sracunato. */
+  correct: boolean | null;
+};
+
+/**
+ * Odabiri prijavljenog korisnika za jedno kolo, spremni za prikaz.
+ *
+ * Vraca praznu listu i kad korisnik nije prijavljen i kad nije tipovao —
+ * profil u oba slucaja prikazuje isti poziv na akciju, pa razlika ne
+ * treba nikome iznad ovog sloja.
+ */
+export async function getMyPicks(roundId: number): Promise<MyPick[]> {
+  const sb = createClient();
+  const {
+    data: { user }
+  } = await sb.auth.getUser();
+  if (!user) return [];
+
+  const { data: entry } = await sb
+    .from('entries')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('round_id', roundId)
+    .maybeSingle();
+  if (!entry) return [];
+
+  const { data: picks } = await sb.from('picks').select('*').eq('entry_id', entry.id);
+  if (!picks?.length) return [];
+
+  const lineIds = picks.filter((p) => p.kind === 'player').map((p) => p.line_id);
+  const fixtureIds = picks.filter((p) => p.kind === 'fixture').map((p) => p.fixture_id);
+
+  const [lines, fixtures, teams] = await Promise.all([
+    lineIds.length
+      ? sb.from('challenge_lines').select('id, line, players(short_name)').in('id', lineIds)
+      : Promise.resolve({ data: [] as unknown[] }),
+    fixtureIds.length
+      ? sb.from('fixtures').select('id, home_code, away_code').in('id', fixtureIds)
+      : Promise.resolve({ data: [] as unknown[] }),
+    getTeams()
+  ]);
+
+  type LineRow = { id: number; line: number; players: { short_name: string } | null };
+  type FixRow = { id: number; home_code: string; away_code: string };
+  const lineById = new Map(((lines.data ?? []) as LineRow[]).map((l) => [l.id, l]));
+  const fixtureById = new Map(((fixtures.data ?? []) as FixRow[]).map((f) => [f.id, f]));
+
+  return picks.map((p) => {
+    if (p.kind === 'player') {
+      const l = lineById.get(p.line_id);
+      return {
+        id: `p${p.line_id}`,
+        subject: l?.players?.short_name ?? 'Igrac',
+        detail: l ? `granica ${l.line} FP` : '—',
+        answer: p.answer === 'over' ? 'Iznad' : 'Ispod',
+        correct: p.is_correct ?? null
+      };
+    }
+    const f = fixtureById.get(p.fixture_id);
+    return {
+      id: `f${p.fixture_id}`,
+      subject: f ? `${teamName(teams, f.home_code)} — ${teamName(teams, f.away_code)}` : 'Mec',
+      detail: 'pobednik meca',
+      answer: f ? teamName(teams, p.answer === 'home' ? f.home_code : f.away_code) : p.answer,
+      correct: p.is_correct ?? null
+    };
+  });
 }

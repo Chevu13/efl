@@ -7,17 +7,18 @@ import MatchupPill from './MatchupPill';
 import Segmented from '../ui/Segmented';
 import { EmptyState, Hint, Meter } from '../ui/primitives';
 import { Delta, FormBars } from '../ui/Stat';
-import { num, teamName, valueClass } from '@/lib/format';
+import { edge, num, signed, teamName, valueClass } from '@/lib/format';
 import type { PricedPlayer, Team, Tier } from '@/lib/types';
 
-type SortKey = 'value_score' | 'projected' | 'price' | 'season_avg' | 'ownership' | 'matchup_score';
+type SortKey = 'edge' | 'value_score' | 'projected' | 'price' | 'season_avg' | 'ownership' | 'matchup_score';
 
 const SORTS: { key: SortKey; label: string; hint: string }[] = [
-  { key: 'value_score', label: 'Vrednost', hint: 'Koliko igrac ide plus od svoje cene. 5 znaci tacno po ceni.' },
+  { key: 'edge', label: 'Razlika', hint: 'Projekcija minus cena — koliko poena donosi preko onoga sto kosta.' },
+  { key: 'value_score', label: 'Vrednost', hint: 'Isto merenje, ali skinuto sa cene: 5 znaci tacno po ceni. Razlika favorizuje skupe igrace, ovo ne.' },
   { key: 'projected', label: 'Projekcija', hint: 'Ocekivani fantasy poeni u ovom kolu.' },
   { key: 'price', label: 'Cena', hint: 'Cena igraca u kreditima za ovo kolo.' },
   { key: 'season_avg', label: 'Prosek', hint: 'Prosecan ucinak u poslednjih pet kola.' },
-  { key: 'matchup_score', label: 'Protivnik', hint: 'Koliko je protivnik povoljan, od 1 do 10.' },
+  { key: 'matchup_score', label: 'Protivnik', hint: 'Tim protiv koga igra i koliko mu je mec povoljan, od 1 do 10. Racuna se iz forme protivnika, koliko poena prima na toj poziciji i da li se igra kod kuce. Vise znaci laksi mec.' },
   { key: 'ownership', label: 'Vlasnistvo', hint: 'Procenat menadzera koji ga vec ima u timu.' }
 ];
 
@@ -60,7 +61,7 @@ export default function PlayerTable({
   const [q, setQ] = useState('');
   const [pos, setPos] = useState<'ALL' | 'G' | 'F' | 'C'>('ALL');
   const [team, setTeam] = useState('ALL');
-  const [sort, setSort] = useState<SortKey>('value_score');
+  const [sort, setSort] = useState<SortKey>('edge');
 
   const teamOptions = useMemo(
     () =>
@@ -84,9 +85,10 @@ export default function PlayerTable({
         );
       })
       .sort((a, b) => {
-        const av = (a[sort] ?? -1) as number;
-        const bv = (b[sort] ?? -1) as number;
-        return sort === 'price' ? av - bv : bv - av;
+        /* `edge` se ne cuva u bazi — izvodi se iz projekcije i cene. */
+        const val = (p: PricedPlayer) =>
+          sort === 'edge' ? (edge(p) ?? -99) : ((p[sort] ?? -1) as number);
+        return sort === 'price' ? val(a) - val(b) : val(b) - val(a);
       });
   }, [players, q, pos, team, sort, teams]);
 
@@ -190,7 +192,7 @@ export default function PlayerTable({
                   <th scope="col">Igrac</th>
                   {showMatchup && (
                     <th scope="col" className="hidden lg:table-cell">
-                      Protivnik
+                      <Hint text="Tim protiv koga igra i koliko mu je mec povoljan, od 1 do 10. Racuna se iz forme protivnika, koliko poena prima na toj poziciji i da li se igra kod kuce. Vise znaci laksi mec.">Protivnik</Hint>
                     </th>
                   )}
                   <th scope="col" className="hidden text-right md:table-cell">
@@ -203,7 +205,10 @@ export default function PlayerTable({
                     <Hint text="Ocekivani fantasy poeni u ovom kolu.">Proj.</Hint>
                   </th>
                   <th scope="col" className="text-right">
-                    <Hint text="Koliko igrac ide plus od svoje cene. 5 znaci tacno po ceni.">Vred.</Hint>
+                    <Hint text="Projekcija minus cena — koliko poena donosi preko onoga sto kosta.">Razlika</Hint>
+                  </th>
+                  <th scope="col" className="hidden text-right sm:table-cell">
+                    <Hint text="Isto merenje, ali skinuto sa cene: 5 znaci tacno po ceni. Razlika favorizuje skupe igrace, ovo ne.">Vred.</Hint>
                   </th>
                   <th scope="col" className="hidden text-right xl:table-cell">
                     <Hint text="Procenat menadzera koji ga vec ima u timu.">Vlas.</Hint>
@@ -243,8 +248,11 @@ export default function PlayerTable({
                       <td className="num font-bold text-ink">{num(p.projected)}</td>
                       <td className="num">
                         <span className={`font-bold ${valueClass(p.value_score)}`}>
-                          {num(p.value_score)}
+                          {signed(edge(p))}
                         </span>
+                      </td>
+                      <td className="num hidden sm:table-cell">
+                        <span className="text-ink-2">{num(p.value_score)}</span>
                         <Meter value={p.value_score} max={10} className="mt-1.5 w-12 md:w-16" />
                       </td>
                       <td className="hidden xl:table-cell">
@@ -287,8 +295,8 @@ export default function PlayerTable({
 
       {tier && (
         <p className="mt-3 text-[11.5px] text-ink-4">
-          Tvoj paket: <b className="text-ink-3">{tier}</b> · vrednost je koliko igrac ide plus od
-          svoje cene — 5 je tacno po ceni, vise je dobitak.
+          Tvoj paket: <b className="text-ink-3">{tier}</b> · razlika je projekcija minus cena;
+          vrednost je isto to skinuto sa cene, gde je 5 tacno po ceni.
         </p>
       )}
     </div>
@@ -328,6 +336,9 @@ function LockedRow({ index, showMatchup }: { index: number; showMatchup: boolean
         <span className="ml-auto block h-3 w-8 rounded-xs bg-line" aria-hidden />
       </td>
       <td>
+        <span className="ml-auto block h-3 w-8 rounded-xs bg-line" aria-hidden />
+      </td>
+      <td className="hidden sm:table-cell">
         <span className="ml-auto block h-3 w-8 rounded-xs bg-line" aria-hidden />
       </td>
       <td className="hidden xl:table-cell">

@@ -8,7 +8,7 @@ import { Chip, Meter, RowDivider, SectionHead } from '@/components/ui/primitives
 import { Delta, FormBars } from '@/components/ui/Stat';
 import { LinkButton } from '@/components/ui/Button';
 import { getCurrentRound, getFixtures, getMyTier, getPricedPlayers, getTeams } from '@/lib/data';
-import { mecevi, num, signed, teamName, untilLabel, valueClass } from '@/lib/format';
+import { edge, mecevi, num, signed, teamName, untilLabel, valueClass } from '@/lib/format';
 import { PLANS, priceLabel } from '@/lib/config';
 import { isPremium } from '@/lib/types';
 
@@ -21,9 +21,13 @@ export default async function Home() {
     : [[], []];
 
   const free = players.find((p) => p.tier_pick === 'FREE') ?? players[0];
-  /* Za naslovnu kompoziciju treba igrac koji stvarno ima fotografiju. */
-  const hero = players.find((p) => p.photo) ?? free;
-  const top = players.slice(0, 6);
+  /* Na naslovnoj stoji igrac sa najvecom razlikom izmedju projekcije i
+     cene — i to samo ako ima fotografiju, jer je kompozicija nosi. */
+  const hero =
+    [...players]
+      .filter((p) => p.photo)
+      .sort((a, b) => (edge(b) ?? -99) - (edge(a) ?? -99))[0] ?? free;
+  const top = [...players].sort((a, b) => (edge(b) ?? -99) - (edge(a) ?? -99)).slice(0, 6);
   const premium = isPremium(me.tier);
 
   return (
@@ -86,7 +90,7 @@ export default async function Home() {
                 </div>
 
                 <div className="relative h-52 bg-gradient-to-b from-elev to-surface">
-                  <PlayerCutout player={hero} className="absolute inset-0" priority />
+                  <PlayerCutout player={hero} priority />
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-surface to-transparent" />
                 </div>
 
@@ -102,9 +106,9 @@ export default async function Home() {
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className="label">Projekcija</div>
+                      <div className="label">Preko cene</div>
                       <div className="stat text-[34px] leading-none text-brand">
-                        {num(hero.projected)}
+                        {signed(edge(hero))}
                       </div>
                     </div>
                   </div>
@@ -115,15 +119,13 @@ export default async function Home() {
                       <div className="statmono mt-1 text-[15px]">{num(hero.price)}</div>
                     </div>
                     <div className="bg-sunken px-3 py-2.5">
+                      <div className="label">Projekcija</div>
+                      <div className="statmono mt-1 text-[15px]">{num(hero.projected)}</div>
+                    </div>
+                    <div className="bg-sunken px-3 py-2.5">
                       <div className="label">Vrednost</div>
                       <div className={`statmono mt-1 text-[15px] ${valueClass(hero.value_score)}`}>
                         {num(hero.value_score)}
-                      </div>
-                    </div>
-                    <div className="bg-sunken px-3 py-2.5">
-                      <div className="label">Forma</div>
-                      <div className="mt-1">
-                        <FormBars values={hero.form} height={16} />
                       </div>
                     </div>
                   </div>
@@ -150,7 +152,7 @@ export default async function Home() {
           <SectionHead
             eyebrow="Rang liste kola"
             title="Ko vredi svoju cenu"
-            desc="Vrednost je odstupanje od cene: 5 znaci da igrac tacno opravdava svoju cenu, sve iznad je dobitak. Tu se dobijaju kola."
+            desc="Razlika je projekcija minus cena — koliko poena igrac donosi preko onoga sto kosta. Tu se dobijaju kola."
             action={
               <LinkButton href="/igraci" variant="ghost" size="sm">
                 Svi izbori kola
@@ -160,7 +162,7 @@ export default async function Home() {
 
           <div className="mt-7 overflow-hidden rounded-md border border-line">
             <div className="hidden grid-cols-[40px_1fr_150px_90px_90px_120px] gap-4 border-b border-line bg-surface px-4 py-2.5 lg:grid">
-              {['#', 'Igrac', 'Protivnik', 'Cena', 'Proj.', 'Vrednost'].map((h, i) => (
+              {['#', 'Igrac', 'Protivnik', 'Cena', 'Proj.', 'Razlika'].map((h, i) => (
                 <span key={h} className={`label ${i > 2 ? 'text-right' : ''}`}>
                   {h}
                 </span>
@@ -200,7 +202,7 @@ export default async function Home() {
 
                 <div className="text-right">
                   <span className={`statmono text-[15px] font-bold ${valueClass(p.value_score)}`}>
-                    {num(p.value_score)}
+                    {signed(edge(p))}
                   </span>
                   <Meter value={p.value_score} max={10} className="ml-auto mt-1.5 w-14 lg:w-full" />
                 </div>
@@ -215,7 +217,7 @@ export default async function Home() {
         <section className="border-y border-line bg-sunken">
           <div className="page grid gap-8 py-14 md:grid-cols-[300px_1fr] md:items-center">
             <div className="relative h-64 overflow-hidden rounded-md border border-line bg-gradient-to-b from-elev to-surface">
-              <PlayerCutout player={free} className="absolute inset-0" />
+              <PlayerCutout player={free} />
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-surface to-transparent px-4 pb-3 pt-10">
                 <p className="font-display text-[20px] font-extrabold uppercase leading-none">
                   {free.short_name}

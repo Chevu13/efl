@@ -123,7 +123,11 @@ export function PlayerCutout({
   const hue = teamHue(player.team_code);
 
   return (
-    <div className={`relative overflow-hidden ${className}`} aria-hidden>
+    /* `absolute inset-0` je deo komponente, ne poziva se spolja: kad je
+       pozivalac slao svoj `absolute`, Tailwind je `relative` iz baze
+       stavljao kasnije u listu pravila — pobedjivao je i blok je ostajao
+       visine nula, pa se fotografija ucitavala ali se nije videla. */
+    <div className={`absolute inset-0 overflow-hidden ${className}`} aria-hidden>
       <span
         className="absolute inset-0"
         style={{

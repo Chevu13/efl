@@ -3,7 +3,7 @@ import PlayerIdentity from './player/PlayerIdentity';
 import MatchupPill from './player/MatchupPill';
 import { Chip, Meter } from './ui/primitives';
 import { Delta, FormBars } from './ui/Stat';
-import { num, valueClass, valueWord, valueBand, teamName } from '@/lib/format';
+import { edge, num, signed, valueClass, valueWord, valueBand, teamName } from '@/lib/format';
 import type { PricedPlayer, Team, Tier } from '@/lib/types';
 
 /**
@@ -67,9 +67,9 @@ export default function PlayerCard({
               <div className="statmono mt-1 text-[16px]">{num(p.price)}</div>
             </div>
             <div>
-              <div className="label">Vrednost</div>
+              <div className="label">Razlika</div>
               <div className={`statmono mt-1 text-[16px] ${valueClass(p.value_score)}`}>
-                {num(p.value_score)}
+                {signed(edge(p))}
               </div>
             </div>
           </div>
@@ -102,7 +102,7 @@ export default function PlayerCard({
         {/* vrednost kao traka + rec, ne samo boja */}
         <div className="mt-4">
           <div className="mb-1.5 flex items-center justify-between">
-            <span className="label">Plus od cene</span>
+            <span className="label">Vrednost — plus od cene</span>
             <span className={`font-mono text-[11px] font-bold uppercase ${valueClass(p.value_score)}`}>
               {valueWord[band]}
             </span>

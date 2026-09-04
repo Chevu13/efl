@@ -39,6 +39,7 @@ for (const r of txt.split(/\r?\n/)) {
   if (v) process.env[l.slice(0, i).trim()] ??= v;
 }
 
+const NL = String.fromCharCode(10);
 const args = process.argv.slice(2);
 const flag = (n, d) => {
   const i = args.indexOf(`--${n}`);
@@ -365,6 +366,8 @@ for (const r of rows) {
     projected,
     value_score: value,
     matchup_score: matchup,
+    /* "Popularity" iz tabele je udeo menadzera koji ga vec imaju. */
+    ownership: r1(r.ownership),
     opponent_code: ctx?.opp ?? null,
     is_home: ctx?.home ?? null,
     status: r.injured ? 'povreda' : 'ok',
@@ -393,7 +396,7 @@ top.forEach((o) =>
 );
 
 const val = [...out].filter((o) => o.projected > 0).sort((a, b) => b.value_score - a.value_score).slice(0, 15);
-log('\nNAJBOLJA VREDNOST (projekcija po kreditu)');
+log('\nNAJBOLJA VREDNOST (koliko ide preko onoga sto cena podrazumeva)');
 log('igrac                        tim  poz  cena  proj  vred');
 log('-'.repeat(62));
 val.forEach((o) =>
@@ -407,8 +410,12 @@ val.forEach((o) =>
 /* 8. UPIS                                                             */
 /* ------------------------------------------------------------------ */
 
-/* Prva tri po vrednosti su izbori kola; prvi je besplatan. */
-const ranked = [...writable].filter((o) => o.projected > 0).sort((a, b) => b.value_score - a.value_score);
+/* Prva tri po razlici projekcija-cena su izbori kola; prvi je besplatan.
+   Razlika, a ne value_score, jer je to broj koji stoji na naslovnoj i na
+   vrhu tabele — izbor kola mora da se poklopi sa onim sto lista kaze. */
+const ranked = [...writable]
+  .filter((o) => o.projected > 0)
+  .sort((a, b) => b.projected - b.price - (a.projected - a.price));
 ranked.forEach((o, i) => {
   o.tier_pick = i === 0 ? 'FREE' : i < 3 ? 'PLUS' : i < 12 ? 'PRO' : null;
 });
@@ -425,6 +432,21 @@ if (byId.size < writable.length) {
   log(`
 upozorenje: ${writable.length - byId.size} duplih player_id — zadrzan red sa vecom projekcijom`);
 }
+const razlika = [...out]
+  .filter((o) => o.projected > 0)
+  .sort((a, b) => b.projected - b.price - (a.projected - a.price))
+  .slice(0, 15);
+log(NL + 'NAJVECA RAZLIKA (projekcija minus cena)');
+log('igrac                        tim  poz  cena  proj  razlika');
+log('-'.repeat(64));
+razlika.forEach((o) =>
+  log(
+    `${o._name.slice(0, 28).padEnd(28)} ${o._team.padEnd(4)} ${(o._pos ?? '?').padEnd(3)} ` +
+      `${String(o.price).padStart(5)} ${String(o.projected).padStart(5)} ` +
+      `${r1(o.projected - o.price).toFixed(1).padStart(8)}`
+  )
+);
+
 const payload = [...byId.values()].map(({ _name, _team, _pos, _basis, _own, ...rest }) => rest);
 
 const coaches = coachRows.map((c) => ({
@@ -441,13 +463,29 @@ if (DRY) {
   log(`player_rounds: ${payload.length} redova`);
   log(`coaches:       ${coaches.length} redova`);
 } else {
-  for (let i = 0; i < payload.length; i += 500) {
-    const { error } = await sb
-      .from('player_rounds')
-      .upsert(payload.slice(i, i + 500), { onConflict: 'round_id,player_id' });
-    if (error) throw new Error(`player_rounds: ${error.message}`);
+  /* `ownership` stize migracijom 0003. Dok ona nije pustena, kolona ne
+     postoji — upis tada ide bez nje umesto da cela skripta padne. */
+  let redovi = payload;
+  for (let pokusaj = 0; pokusaj < 2; pokusaj++) {
+    let greska = null;
+    for (let i = 0; i < redovi.length; i += 500) {
+      const { error } = await sb
+        .from('player_rounds')
+        .upsert(redovi.slice(i, i + 500), { onConflict: 'round_id,player_id' });
+      if (error) {
+        greska = error;
+        break;
+      }
+    }
+    if (!greska) break;
+    if (pokusaj === 0 && /'ownership' column/.test(greska.message)) {
+      log('upozorenje: kolone ownership nema u bazi — pusti supabase/migrations/0003_analitika_kola.sql');
+      redovi = payload.map(({ ownership, ...rest }) => rest);
+      continue;
+    }
+    throw new Error(`player_rounds: ${greska.message}`);
   }
-  log(`player_rounds: upisano ${payload.length}`);
+  log(`player_rounds: upisano ${redovi.length}${redovi === payload ? ' (sa vlasnistvom)' : ' (bez vlasnistva)'}`);
 
   const { error: ce } = await sb.from('coaches').upsert(coaches, { onConflict: 'id' });
   if (ce) log(`coaches: ${ce.message}`);
