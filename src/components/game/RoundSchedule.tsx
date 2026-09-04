@@ -239,7 +239,7 @@ export default function RoundSchedule({
       {/* ---------------- granice igraca ---------------- */}
       {lines.length > 0 && (
         <section>
-          <RowDivider title="Igraci — iznad ili ispod granice" meta={`${lines.length}`} />
+          <RowDivider title="Igraci — prelaze li svoju cenu" meta={`${lines.length}`} />
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {lines.map((l) => (
               <LineCard
@@ -312,7 +312,7 @@ function LineCard({
 
       <div className="flex items-baseline justify-center gap-2 border-y border-line py-3">
         <span className="stat text-[34px] leading-none">{num(line.line)}</span>
-        <span className="label">granica · FP</span>
+        <span className="label">cena · granica FP</span>
       </div>
 
       <div className="grid grid-cols-2 gap-2">

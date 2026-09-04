@@ -114,7 +114,7 @@ async function all(table, select, filter = (q) => q, order = ['id']) {
   return out;
 }
 
-const ourPlayers = await all('players', 'id, full_name, short_name, team_code, position, jersey, el_person_code', (q) => q, ['id']);
+const ourPlayers = await all('players', 'id, full_name, short_name, team_code, position, jersey, el_person_code, photo', (q) => q, ['id']);
 const fixtures = await all('fixtures', 'home_code, away_code, home_edge', (q) => q.eq('round_id', ROUND_ID), ['id']);
 const elPlayers = await all('el_players', 'person_code, name', (q) => q, ['person_code']);
 const hist = await all(
@@ -449,19 +449,161 @@ razlika.forEach((o) =>
 
 const payload = [...byId.values()].map(({ _name, _team, _pos, _basis, _own, ...rest }) => rest);
 
-const coaches = coachRows.map((c) => ({
-  id: `hc-${ourTeam(c['Team Abbr']).toLowerCase()}`,
-  round_id: ROUND_ID,
-  name: c.Player,
-  team_code: ourTeam(c['Team Abbr']),
-  price: Number(c.Price),
-  projected: r1(priceImplied(Number(c.Price)) * 0.8)
-}));
+/* ------------------------------------------------------------------ */
+/* 8b. TRENERI                                                         */
+/*                                                                     */
+/* Trener se ne boduje kao igrac. Zvanicna tabela daje sest ishoda,    */
+/* i svi zavise iskljucivo od rezultata meca:                          */
+/*                                                                     */
+/*   pobeda   1-10 ili produzetak  +10                                 */
+/*   pobeda  11-20                 +20                                 */
+/*   pobeda    20+                 +25                                 */
+/*   poraz    1-10 ili produzetak   -5                                 */
+/*   poraz   11-20                 -10                                 */
+/*   poraz     20+                 -20                                 */
+/*                                                                     */
+/* Cena trenera ne govori nista o tome — zato projekcija ide iz sanse  */
+/* za pobedu u konkretnom mecu, a ne iz cene kao kod igraca.           */
+/* ------------------------------------------------------------------ */
+
+const BODOVI = { p10: 10, p20: 20, pBig: 25, g10: -5, g20: -10, gBig: -20 };
+
+/* Sigma razlike u kosevima, izmerena na 732 odigrane utakmice sezona
+   2024 i 2025 iz `el_games`. Prednost domaceg je u proseku +3,4 koseva,
+   ali ona vec sedi u proceni meca, pa se ovde ne dodaje ponovo. */
+const SIGMA = 12.4;
+
+/* Abramowitz-Stegun 7.1.26 — greska ispod 1.5e-7, dovoljno za projekciju. */
+function erf(x) {
+  const znak = x < 0 ? -1 : 1;
+  x = Math.abs(x);
+  const t = 1 / (1 + 0.3275911 * x);
+  const y =
+    1 -
+    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
+      t *
+      Math.exp(-x * x);
+  return znak * y;
+}
+const F = (x, mu) => 0.5 * (1 + erf((x - mu) / (SIGMA * Math.SQRT2)));
+
+/* Iz sanse za pobedu nazad u ocekivanu razliku: trazi se mu za koje je
+   P(razlika > 0) = sansa. Bisekcija umesto druge aproksimacije — kratko
+   je i nema svoju gresku. */
+function muIzSanse(sansa) {
+  const p = Math.min(0.99, Math.max(0.01, sansa));
+  let lo = -40, hi = 40;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (1 - F(0, mid) < p) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+/** Ocekivani broj poena trenera u jednom mecu, po zvanicnoj tabeli. */
+function trenerEV(sansa) {
+  const mu = muIzSanse(sansa);
+  const v = {
+    p10: F(10, mu) - F(0, mu),
+    p20: F(20, mu) - F(10, mu),
+    pBig: 1 - F(20, mu),
+    g10: F(0, mu) - F(-10, mu),
+    g20: F(-10, mu) - F(-20, mu),
+    gBig: F(-20, mu)
+  };
+  const ev = Object.keys(BODOVI).reduce((a, k) => a + BODOVI[k] * v[k], 0);
+  return { ev, v };
+}
+
+const coaches = coachRows.map((c) => {
+  const tim = ourTeam(c['Team Abbr']);
+  /* Tim u dvokolu ima dva meca — trener kupi poene sa oba. */
+  const meceviTima = fixtures.filter((f) => f.home_code === tim || f.away_code === tim);
+  let ev = 0;
+  let raspodela = null;
+  for (const f of meceviTima) {
+    const domaci = f.home_code === tim;
+    const sansa = (domaci ? (f.home_edge ?? 50) : 100 - (f.home_edge ?? 50)) / 100;
+    const r = trenerEV(sansa);
+    ev += r.ev;
+    raspodela ??= { sansa, ...r.v };
+  }
+  return {
+    id: `hc-${tim.toLowerCase()}`,
+    round_id: ROUND_ID,
+    name: c.Player,
+    team_code: tim,
+    price: Number(c.Price),
+    projected: r1(ev),
+    _meceva: meceviTima.length,
+    _r: raspodela
+  };
+});
+
+head('TRENERI');
+log('Bodovanje: pobeda 1-10 +10, 11-20 +20, 20+ +25 | poraz 1-10 -5, 11-20 -10, 20+ -20');
+log('');
+log('trener                       tim  cena  sansa   +10   +20   +25    -5   -10   -20   proj');
+log('-'.repeat(94));
+[...coaches]
+  .sort((a, b) => b.projected - a.projected)
+  .forEach((c) => {
+    const r = c._r;
+    const pct = (x) => (x == null ? '   —' : (x * 100).toFixed(0).padStart(4) + '%');
+    log(
+      `${c.name.slice(0, 28).padEnd(28)} ${c.team_code.padEnd(4)} ${String(c.price).padStart(5)} ` +
+        `${r ? (r.sansa * 100).toFixed(0).padStart(5) + '%' : '    —'} ` +
+        `${pct(r?.p10)} ${pct(r?.p20)} ${pct(r?.pBig)} ${pct(r?.g10)} ${pct(r?.g20)} ${pct(r?.gBig)} ` +
+        `${String(c.projected).padStart(6)}`
+    );
+  });
+
+/* ------------------------------------------------------------------ */
+/* 8c. GRANICE ZA IZAZOV                                               */
+/*                                                                     */
+/* Granica je CENA igraca, ne nasa projekcija: pitanje je da li je     */
+/* igrac zaradio ono sto kosta, a ne da li smo mi dobro pogodili.      */
+/*                                                                     */
+/* Bira se sest poznatih imena kod kojih odgovor nije ocigledan —      */
+/* medju cetrdeset najvecih projekcija, ona sa fotografijom kod kojih  */
+/* je projekcija najbliza ceni, po jedan iz razlicitih timova.         */
+/* ------------------------------------------------------------------ */
+
+const saSlikom = new Set(ourPlayers.filter((p) => p.photo).map((p) => p.id));
+const kandidati = [...byId.values()]
+  .filter((o) => o.projected > 0 && saSlikom.has(o.player_id))
+  .sort((a, b) => b.projected - a.projected)
+  .slice(0, 40)
+  .sort((a, b) => Math.abs(a.projected - a.price) - Math.abs(b.projected - b.price));
+
+const granice = [];
+const zauzet = new Set();
+for (const o of kandidati) {
+  if (granice.length === 6) break;
+  if (zauzet.has(o._team)) continue;
+  zauzet.add(o._team);
+  granice.push({ round_id: ROUND_ID, player_id: o.player_id, line: o.price, _o: o });
+}
+
+head('GRANICE ZA IZAZOV');
+log('granica = cena igraca; „iznad" znaci da je zaradio vise nego sto kosta');
+log('');
+log('igrac                        tim   granica  nasa proj  razlika');
+log('-'.repeat(62));
+granice.forEach((g) =>
+  log(
+    `${g._o._name.slice(0, 28).padEnd(28)} ${g._o._team.padEnd(4)} ` +
+      `${String(g.line).padStart(8)} ${String(g._o.projected).padStart(10)} ` +
+      `${r1(g._o.projected - g.line).toFixed(1).padStart(8)}`
+  )
+);
 
 head(DRY ? 'DRY RUN — nista nije upisano' : 'UPIS');
 if (DRY) {
   log(`player_rounds: ${payload.length} redova`);
   log(`coaches:       ${coaches.length} redova`);
+  log(`challenge_lines: ${granice.length} redova`);
 } else {
   /* `ownership` stize migracijom 0003. Dok ona nije pustena, kolona ne
      postoji — upis tada ide bez nje umesto da cela skripta padne. */
@@ -487,9 +629,19 @@ if (DRY) {
   }
   log(`player_rounds: upisano ${redovi.length}${redovi === payload ? ' (sa vlasnistvom)' : ' (bez vlasnistva)'}`);
 
-  const { error: ce } = await sb.from('coaches').upsert(coaches, { onConflict: 'id' });
+  const trenerRedovi = coaches.map(({ _meceva, _r, ...rest }) => rest);
+  const { error: ce } = await sb.from('coaches').upsert(trenerRedovi, { onConflict: 'id' });
   if (ce) log(`coaches: ${ce.message}`);
   else log(`coaches: upisano ${coaches.length}`);
+
+  /* Granice se prvo brisu: kolo ih ima tacno sest, a ponovno pokretanje
+     sa drugim izborom bi inace samo dodalo jos redova. */
+  await sb.from('challenge_lines').delete().eq('round_id', ROUND_ID);
+  const { error: le } = await sb
+    .from('challenge_lines')
+    .insert(granice.map(({ _o, ...rest }) => rest));
+  if (le) log(`challenge_lines: ${le.message}`);
+  else log(`challenge_lines: upisano ${granice.length}`);
 }
 
 log('');

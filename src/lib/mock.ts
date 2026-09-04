@@ -448,10 +448,12 @@ export function mockChallengeLines(
   const withPhoto = all.filter((p) => p.photo).slice(0, 6);
   const pool = withPhoto.length >= 6 ? withPhoto : all.slice(0, 6);
 
+  /* Granica je cena igraca, ne nasa projekcija — pitanje je da li je
+     zaradio ono sto kosta, a ne da li smo mi dobro pogodili. */
   return pool.map((p, i) => ({
     id: roundId * 100 + i,
     player_id: p.id,
-    line: round1(p.projected + (i % 2 ? 1.5 : -1.5)),
+    line: round1(p.price),
     result: null,
     players: {
       id: p.id,
