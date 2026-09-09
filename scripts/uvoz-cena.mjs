@@ -327,9 +327,15 @@ for (const r of rows) {
   const implied = priceImplied(r.price);
 
   let projected, basis;
+  /* Prosek i minutaza prosle sezone — prikazuju se u tabeli kao kontekst.
+     Forma tekuce sezone jos ne postoji; puni se od 5. kola. */
+  let prosek = null;
+  let minuta = null;
   if (e && e.g >= 8) {
     const perMin = e.fp / Math.max(1, e.min);
     const minutes = (e.min / e.g) * roleBoost(e.team, r.pos);
+    prosek = r1(e.fp / e.g);
+    minuta = r1(minutes);
     const fromHistory = perMin * minutes;
     /* Istorija i cena pola-pola — cena nosi ono sto istorija ne vidi
        (promena tima, uloga, forma u pripremama). */
@@ -368,6 +374,8 @@ for (const r of rows) {
     matchup_score: matchup,
     /* "Popularity" iz tabele je udeo menadzera koji ga vec imaju. */
     ownership: r1(r.ownership),
+    season_avg: prosek,
+    minutes: minuta,
     opponent_code: ctx?.opp ?? null,
     is_home: ctx?.home ?? null,
     status: r.injured ? 'povreda' : 'ok',
@@ -671,10 +679,12 @@ if (DRY) {
   log(`coaches:       ${coaches.length} redova`);
   log(`challenge_lines: ${granice.length} redova`);
 } else {
-  /* `ownership` stize migracijom 0003. Dok ona nije pustena, kolona ne
-     postoji — upis tada ide bez nje umesto da cela skripta padne. */
+  /* Analiticke kolone stizu migracijom 0003. Ako je neka jos nema, upis
+     ide bez nje umesto da cela skripta padne — poruka kaze koja fali. */
+  const DOPUNSKE = ['ownership', 'season_avg', 'minutes'];
   let redovi = payload;
-  for (let pokusaj = 0; pokusaj < 2; pokusaj++) {
+  const izbacene = [];
+  for (let pokusaj = 0; pokusaj <= DOPUNSKE.length; pokusaj++) {
     let greska = null;
     for (let i = 0; i < redovi.length; i += 500) {
       const { error } = await sb
@@ -686,14 +696,20 @@ if (DRY) {
       }
     }
     if (!greska) break;
-    if (pokusaj === 0 && /'ownership' column/.test(greska.message)) {
-      log('upozorenje: kolone ownership nema u bazi — pusti supabase/migrations/0003_analitika_kola.sql');
-      redovi = payload.map(({ ownership, ...rest }) => rest);
+    const fali = DOPUNSKE.find((k) => greska.message.includes(`'${k}' column`));
+    if (fali) {
+      izbacene.push(fali);
+      log(`upozorenje: kolone ${fali} nema u bazi — pusti supabase/migrations/0003_analitika_kola.sql`);
+      redovi = redovi.map((o) => {
+        const kopija = { ...o };
+        delete kopija[fali];
+        return kopija;
+      });
       continue;
     }
     throw new Error(`player_rounds: ${greska.message}`);
   }
-  log(`player_rounds: upisano ${redovi.length}${redovi === payload ? ' (sa vlasnistvom)' : ' (bez vlasnistva)'}`);
+  log(`player_rounds: upisano ${redovi.length}${izbacene.length ? ` (bez: ${izbacene.join(', ')})` : ' (sa vlasnistvom, prosekom i minutazom)'}`);
 
   const trenerRedovi = coaches.map(({ _meceva, _r, ...rest }) => rest);
   const { error: ce } = await sb.from('coaches').upsert(trenerRedovi, { onConflict: 'id' });

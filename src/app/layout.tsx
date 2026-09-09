@@ -4,7 +4,7 @@ import './globals.css';
 import Nav from '@/components/Nav';
 import SiteFooter from '@/components/SiteFooter';
 import { getCurrentRound, getMyTier, isDemoData } from '@/lib/data';
-import { SITE } from '@/lib/config';
+import { PLANS, SITE, SITE_URL, absUrl } from '@/lib/config';
 
 /**
  * Zvanicno brend pismo je Proxima Nova. Dok licencirani webfont nije u
@@ -33,21 +33,45 @@ const mono = JetBrains_Mono({
   display: 'swap'
 });
 
+const OPIS =
+  'Analitika za EuroLeague Fantasy: cena, projekcija poena, tezina protivnika i razlika u odnosu na cenu za svako kolo. Optimizator postave koji objasni svaku zamenu.';
+
 export const metadata: Metadata = {
+  /* Bez ovoga Next ne ume da napravi apsolutne adrese za canonical i OG
+     sliku, pa deljenje linka na mrezama vrati prazan pregled. */
+  metadataBase: new URL(SITE_URL),
   title: {
     default: `${SITE.name} — ${SITE.tagline}`,
     template: `%s · ${SITE.short}`
   },
-  description:
-    'Analitika za EuroLeague Fantasy: cena, projekcija poena, tezina protivnika i vrednost za svako kolo. Optimizator postave koji objasni svaku zamenu.',
+  description: OPIS,
   applicationName: SITE.name,
+  keywords: [
+    'EuroLeague Fantasy',
+    'fantasy kosarka',
+    'projekcija fantasy poena',
+    'cene igraca',
+    'optimizator postave',
+    'Evroliga'
+  ],
+  alternates: { canonical: '/' },
   openGraph: {
+    siteName: SITE.name,
     title: `${SITE.name} — ${SITE.tagline}`,
-    description:
-      'Cena, projekcija, tezina protivnika i vrednost za svakog igraca EuroLeague Fantasy takmicenja.',
+    description: OPIS,
+    url: '/',
     type: 'website',
-    locale: 'sr_RS'
-  }
+    locale: SITE.locale
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `${SITE.name} — ${SITE.tagline}`,
+    description: OPIS
+  },
+  /* Dok sajt nije na svom domenu, privremena adresa ne sme u indeks. */
+  robots: process.env.NEXT_PUBLIC_SITE_URL
+    ? { index: true, follow: true }
+    : { index: false, follow: false }
 };
 
 export const viewport: Viewport = {
@@ -63,8 +87,52 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   ]);
 
   return (
-    <html lang="sr" className={`${sans.variable} ${display.variable} ${mono.variable}`}>
+    <html lang={SITE.lang} className={`${sans.variable} ${display.variable} ${mono.variable}`}>
       <body className="min-h-dvh">
+        {/* Strukturirani podaci — pretrazivacu kazu sta je ovo i kako da
+            se pretraga sajta prikaze kao polje u rezultatu. Cene stoje uz
+            proizvod jer se paketi stvarno prodaju. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@graph': [
+                {
+                  '@type': 'WebSite',
+                  '@id': absUrl('/#sajt'),
+                  url: absUrl('/'),
+                  name: SITE.name,
+                  inLanguage: SITE.lang,
+                  description: OPIS,
+                  publisher: { '@id': absUrl('/#organizacija') }
+                },
+                {
+                  '@type': 'Organization',
+                  '@id': absUrl('/#organizacija'),
+                  name: SITE.name,
+                  url: absUrl('/'),
+                  logo: absUrl('/brand/efl-mark.svg')
+                },
+                {
+                  '@type': 'SoftwareApplication',
+                  name: SITE.name,
+                  applicationCategory: 'SportsApplication',
+                  operatingSystem: 'Web',
+                  inLanguage: SITE.lang,
+                  description: OPIS,
+                  offers: PLANS.map((plan) => ({
+                    '@type': 'Offer',
+                    name: plan.name,
+                    price: (plan.priceCents / 100).toFixed(2),
+                    priceCurrency: SITE.currency,
+                    category: `${plan.days} dana pristupa`
+                  }))
+                }
+              ]
+            })
+          }}
+        />
         <Nav
           email={email}
           username={username}

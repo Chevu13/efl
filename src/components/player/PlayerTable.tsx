@@ -17,7 +17,7 @@ const SORTS: { key: SortKey; label: string; hint: string }[] = [
   { key: 'value_score', label: 'Vrednost', hint: 'Isto merenje, ali skinuto sa cene: 5 znaci tacno po ceni. Razlika favorizuje skupe igrace, ovo ne.' },
   { key: 'projected', label: 'Projekcija', hint: 'Ocekivani fantasy poeni u ovom kolu.' },
   { key: 'price', label: 'Cena', hint: 'Cena igraca u kreditima za ovo kolo.' },
-  { key: 'season_avg', label: 'Prosek', hint: 'Prosecan ucinak u poslednjih pet kola.' },
+  { key: 'season_avg', label: 'Prosek', hint: 'Prosecni fantasy poeni po utakmici prosle sezone. Forma tekuce sezone se puni od 5. kola.' },
   { key: 'matchup_score', label: 'Protivnik', hint: 'Tim protiv koga igra i koliko mu je mec povoljan, od 1 do 10. Racuna se iz forme protivnika, koliko poena prima na toj poziciji i da li se igra kod kuce. Vise znaci laksi mec.' },
   { key: 'ownership', label: 'Vlasnistvo', hint: 'Procenat menadzera koji ga vec ima u timu.' }
 ];
@@ -196,7 +196,7 @@ export default function PlayerTable({
                     </th>
                   )}
                   <th scope="col" className="hidden text-right md:table-cell">
-                    <Hint text="Prosecan ucinak u poslednjih pet kola.">Forma</Hint>
+                    <Hint text="Prosecni fantasy poeni po utakmici prosle sezone. Forma tekuce sezone se puni od 5. kola.">Prosek</Hint>
                   </th>
                   <th scope="col" className="text-right">
                     <Hint text="Cena igraca u kreditima za ovo kolo.">Cena</Hint>

@@ -104,7 +104,7 @@ function buildReasons(out: PricedPlayer, inc: PricedPlayer, role: Role, isCaptai
   if (inc.season_avg != null && out.season_avg != null && Math.abs(inc.season_avg - out.season_avg) >= 1) {
     r.push({
       label: 'Forma',
-      detail: `Prosek poslednjih pet kola ${num(inc.season_avg)} naspram ${num(out.season_avg)}.`
+      detail: `Prosek po utakmici ${num(inc.season_avg)} naspram ${num(out.season_avg)}.`
     });
   }
 

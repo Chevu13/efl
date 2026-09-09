@@ -11,8 +11,27 @@ export const SITE = {
   short: 'EFL',
   tagline: 'Prestani da nagađaš. Počni da računaš.',
   currency: 'EUR',
-  currencySymbol: '€'
+  currencySymbol: '€',
+  locale: 'sr_RS',
+  lang: 'sr'
 } as const;
+
+/**
+ * Adresa sajta — koren za canonical, sitemap, robots i OG sliku.
+ *
+ * Vercel postavlja `VERCEL_URL` sam, ali bez šeme i sa nasumičnim
+ * poddomenom po deployu; zato je `NEXT_PUBLIC_SITE_URL` glavni izvor i
+ * on mora da stoji u produkciji. Lokalni fallback služi samo da build
+ * ne pukne na praznoj promenljivoj.
+ */
+export const SITE_URL = (
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '') ||
+  'http://localhost:3000'
+).replace(/\/$/, '');
+
+/** Puna adresa za canonical i sitemap. */
+export const absUrl = (path = '/') => `${SITE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 
 /* ------------------------------------------------------------------ */
 /* PAKETI                                                              */

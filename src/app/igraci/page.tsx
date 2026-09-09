@@ -12,6 +12,7 @@ import { TIER_RANK, isPremium } from '@/lib/types';
 export const revalidate = 60;
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/igraci' },
   title: 'Izbori kola',
   description:
     'Igraci koji vrede svoju cenu u tekucem kolu EuroLeague Fantasy takmicenja, sa projekcijom i obrazlozenjem.'
@@ -83,7 +84,7 @@ export default async function Igraci() {
         as="h1"
         eyebrow={round ? `${round.number}. kolo · ${round.season}` : 'Izbori kola'}
         title="Igraci koji vrede svoju cenu"
-        desc="Poredak je po odnosu projekcije i cene. Uz svaki izbor stoji razlog, protivnik i forma — da mozes da proveris zakljucak, a ne samo da ga prihvatis."
+        desc="Poredak je po razlici izmedju projekcije i cene. Uz svaki izbor stoji razlog, protivnik i prosek — da mozes da proveris zakljucak, a ne samo da ga prihvatis."
         action={
           <div className="flex items-center gap-2">
             {round?.deadline && <Chip>Jos {untilLabel(round.deadline)}</Chip>}

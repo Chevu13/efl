@@ -16,6 +16,7 @@ import { num, untilLabel } from '@/lib/format';
 export const revalidate = 30;
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/raspored' },
   title: 'Raspored i izazov kola',
   description:
     'Mecevi tekuceg kola EuroLeague sa procenom sanse za pobedu, fantasy prilikama i glasanjem za izazov kola.'

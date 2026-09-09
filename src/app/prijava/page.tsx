@@ -5,6 +5,7 @@ import Lockup from '@/components/brand/Lockup';
 import CourtBackdrop from '@/components/ui/CourtBackdrop';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/prijava' },
   title: 'Prijava',
   description: 'Prijavi se ili napravi besplatan nalog na Euro Fantasy Lab.'
 };

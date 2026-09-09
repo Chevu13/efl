@@ -10,6 +10,7 @@ import { isPremium } from '@/lib/types';
 export const revalidate = 3600;
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/baza' },
   title: 'Baza igraca',
   description:
     'Svi igraci EuroLeague sezone: pozicija, tim, cena kola, projekcija, forma i vrednost.'

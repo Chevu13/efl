@@ -9,6 +9,7 @@ import { isPremium } from '@/lib/types';
 export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/optimizator' },
   title: 'Optimizator postave',
   description:
     'Zamene koje donose vise projektovanih poena u okviru istog budzeta — sa obrazlozenjem za svaku.'

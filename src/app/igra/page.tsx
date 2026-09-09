@@ -16,6 +16,7 @@ import { TIER_RANK } from '@/lib/types';
 export const revalidate = 30;
 
 export const metadata: Metadata = {
+  alternates: { canonical: '/igra' },
   title: 'Moj tim',
   description:
     'Sastavi fantasy postavu po zvanicnim pravilima: 4 beka, 4 krila, 2 centra i trener u okviru 100 kredita.'
