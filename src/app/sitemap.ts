@@ -19,7 +19,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const koloVreme = round?.deadline ? new Date(round.deadline) : new Date();
 
   const poKolu = ['/igraci', '/raspored', '/baza', '/igra', '/optimizator'];
-  const staticne = ['/', '/prijava'];
+  const staticne = ['/', '/prijava', '/privatnost', '/uslovi'];
 
   return [
     ...staticne.map((p) => ({

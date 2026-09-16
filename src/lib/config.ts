@@ -13,7 +13,9 @@ export const SITE = {
   currency: 'EUR',
   currencySymbol: '€',
   locale: 'sr_RS',
-  lang: 'sr'
+  lang: 'sr',
+  /** Kontakt za podrsku, privatnost i povracaj novca — jedno mesto. */
+  email: 'eurofantasylab@gmail.com'
 } as const;
 
 /**

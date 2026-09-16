@@ -59,7 +59,18 @@ export default function SiteFooter({ demo }: { demo: boolean }) {
       <div className="border-t border-line">
         <div className="page flex flex-wrap justify-between gap-x-8 gap-y-2 py-5 font-mono text-[10.5px]
                         uppercase tracking-[0.12em] text-ink-4">
-          <span>© {new Date().getFullYear()} {SITE.name}</span>
+          <span className="flex flex-wrap gap-x-5 gap-y-2">
+            <span>© {new Date().getFullYear()} {SITE.name}</span>
+            <Link href="/privatnost" className="transition-colors duration-fast hover:text-ink">
+              Privatnost
+            </Link>
+            <Link href="/uslovi" className="transition-colors duration-fast hover:text-ink">
+              Uslovi
+            </Link>
+            <a href={`mailto:${SITE.email}`} className="normal-case tracking-normal transition-colors duration-fast hover:text-ink">
+              {SITE.email}
+            </a>
+          </span>
           <span>Nezavisna analiticka platforma · bez veze sa Euroleague Basketball</span>
         </div>
       </div>
