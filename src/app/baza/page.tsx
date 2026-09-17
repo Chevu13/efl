@@ -3,7 +3,7 @@ import PlayerTable from '@/components/player/PlayerTable';
 import TeamRoster from '@/components/player/TeamRoster';
 import { SectionHead, EmptyState, Chip } from '@/components/ui/primitives';
 import { StatStrip } from '@/components/ui/Stat';
-import { getAllPlayers, getCurrentRound, getMyTier, getPricedPlayers, getTeams } from '@/lib/data';
+import { getAllPlayers, getCurrentRound, getMyTier, getPricedPlayers, getTeams, trimForTier } from '@/lib/data';
 import { NEXT_TIER } from '@/lib/config';
 import { isPremium } from '@/lib/types';
 
@@ -34,10 +34,11 @@ export default async function Baza() {
   const priced = round ? await getPricedPlayers(round.id) : [];
   const premium = isPremium(tier);
   /* Cela baza sa projekcijom za svakog igraca je ono sto Ultra kupuje.
-     Nizi paketi dobijaju izbore kola na /igraci; ovde vide pocetak liste,
-     a ostatak ne napusta server. */
+     Ostali vide sve igrace sa cenom i protivnikom, a projekciju samo za
+     svoje izbore — trimForTier to skida pre nego sto ode u pregledac. */
   const svi = tier === 'ULTRA';
-  const visible = svi ? priced : priced.slice(0, premium ? 30 : 15);
+  const vidljivi = trimForTier(priced, tier);
+  const visible = tier === 'FREE' ? vidljivi.slice(0, 15) : vidljivi;
 
   const byTeam = players.reduce<Record<string, typeof players>>((acc, p) => {
     (acc[p.team_code ?? '—'] ||= []).push(p);

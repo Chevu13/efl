@@ -67,8 +67,8 @@ export const PLANS: Plan[] = [
     features: [
       'Sve iz besplatnog paketa',
       'Skup, srednji i jeftin izbor — po jedan, sa detaljnim obrazloženjem',
-      'Tabela kola sa cenom, projekcijom i razlikom',
-      'Sortiranje i filteri po vrednosti'
+      'Tabela kola sa cenom i protivnikom za sve igrače',
+      'Sortiranje i filteri po poziciji, timu i ceni'
     ]
   },
   {
@@ -173,9 +173,12 @@ export const PICK_LIMIT: Record<Tier, number> = {
 
 /** Koliko zamena optimizator otkriva u celosti. */
 export const OPTIMIZER_LIMIT: Record<Tier, number> = {
-  FREE: 1,
-  PLUS: 1,
-  PRO: 2,
+  /* Optimizator je Ultra. Nizi paketi vide koliko poena zamene donose i
+     da ih ima, ali ne i koje su — ime igraca sa projekcijom je upravo ono
+     sto izbori kola ne otkrivaju. */
+  FREE: 0,
+  PLUS: 0,
+  PRO: 0,
   /* Cetiri izmene — koliko zvanicna igra dozvoljava besplatno po kolu. */
   ULTRA: 4
 };

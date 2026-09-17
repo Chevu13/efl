@@ -67,7 +67,7 @@ export default async function Igra() {
           pool={trimForTier(pool, me.tier)}
           coaches={coaches}
           teams={teams}
-          canOptimize={TIER_RANK[me.tier] >= TIER_RANK.PRO}
+          canOptimize={me.tier === 'ULTRA'}
         />
       </div>
     </div>

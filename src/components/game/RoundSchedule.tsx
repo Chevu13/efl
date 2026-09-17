@@ -140,7 +140,9 @@ export default function RoundSchedule({
   const bestFor = (home: string, away: string) =>
     players
       .filter((p) => p.team_code === home || p.team_code === away)
-      .sort((a, b) => (b.projected ?? 0) - (a.projected ?? 0))
+      /* Projekcija stize samo za igrace koje paket vidi; ostali se redjaju
+         po ceni, koja je javna, pa redosled ne otkriva nista. */
+      .sort((a, b) => (b.projected ?? -1) - (a.projected ?? -1) || (b.price ?? 0) - (a.price ?? 0))
       .slice(0, 3);
 
   return (

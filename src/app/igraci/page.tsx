@@ -4,7 +4,7 @@ import PlayerTable from '@/components/player/PlayerTable';
 import TierGate from '@/components/TierGate';
 import { SectionHead, EmptyState, Chip, RowDivider } from '@/components/ui/primitives';
 import { LinkButton } from '@/components/ui/Button';
-import { getCurrentRound, getMyTier, getPricedPlayers, getTeams } from '@/lib/data';
+import { getCurrentRound, getMyTier, getPricedPlayers, getTeams, trimForTier } from '@/lib/data';
 import { NEXT_TIER, POSITION_PLURAL, PRICE_BANDS, bandLabel } from '@/lib/config';
 import { untilLabel } from '@/lib/format';
 import { TIER_RANK, isPremium } from '@/lib/types';
@@ -51,9 +51,14 @@ export default async function Igraci() {
   const hiddenPicks =
     (otvoren('PLUS') ? 0 : plusPicks.length) + (otvoren('PRO') ? 0 : proPicks.length);
 
-  /* Tabela: bez paketa se salje samo pocetak liste. Ostatak ne napusta
-     server, pa nema sta da se otkljuca u pregledacu. */
-  const tableRows = premium ? players : players.slice(0, 12);
+  /* Kartice izbora se crtaju na serveru: zakljucana kartica ispisuje samo
+     poziciju, tim i protivnika, pa pun spisak ovde ne curi. Tabela je
+     klijentska komponenta i sve sto dobije stize u pregledac — zato ide
+     kroz trimForTier, koji skida projekcije za igrace van tvojih izbora. */
+  const vidljivi = trimForTier(players, tier);
+  const tableRows = tier === 'FREE' ? vidljivi.slice(0, 12) : vidljivi;
+  const poId = new Map(vidljivi.map((p) => [p.id, p]));
+  const kartica = (p: (typeof players)[number]) => poId.get(p.id) ?? p;
 
   if (!players.length) {
     return (
@@ -97,7 +102,7 @@ export default async function Igraci() {
       {freePicks.length > 0 && (
         <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {freePicks.map((p) => (
-            <PlayerCard key={p.id} p={p} teams={teams} rank={1} />
+            <PlayerCard key={p.id} p={kartica(p)} teams={teams} rank={1} />
           ))}
         </div>
       )}
@@ -120,7 +125,12 @@ export default async function Igraci() {
                   <p className="label mb-2">
                     {b.label} <span className="text-ink-4">· {b.desc}</span>
                   </p>
-                  <PlayerCard p={p} teams={teams} locked={!otvoren('PLUS')} need="PLUS" />
+                  <PlayerCard
+                    p={otvoren('PLUS') ? kartica(p) : p}
+                    teams={teams}
+                    locked={!otvoren('PLUS')}
+                    need="PLUS"
+                  />
                 </div>
               );
             })}
@@ -151,7 +161,12 @@ export default async function Igraci() {
                       <p className="label mb-2">
                         {bandLabel(String(p.pick_group).split('-')[1])}
                       </p>
-                      <PlayerCard p={p} teams={teams} locked={!otvoren('PRO')} need="PRO" />
+                      <PlayerCard
+                        p={otvoren('PRO') ? kartica(p) : p}
+                        teams={teams}
+                        locked={!otvoren('PRO')}
+                        need="PRO"
+                      />
                     </div>
                   ))}
                 </div>
@@ -175,7 +190,7 @@ export default async function Igraci() {
         <SectionHead
           eyebrow="Cela lista kola"
           title="Svi igraci sa cenom"
-          desc="Sortiraj po vrednosti, projekciji ili protivniku i pronadji sopstvene zakljucke."
+          desc={tier === 'ULTRA' ? 'Sortiraj po vrednosti, projekciji ili protivniku i pronadji sopstvene zakljucke.' : 'Cena i protivnik za sve igrace. Projekcija za celu ligu otkljucava se u Ultra paketu.'}
         />
         <div className="mt-6">
           <PlayerTable

@@ -227,25 +227,57 @@ export function activeSubscription(subs: Subscription[]): Subscription | null {
 }
 
 /**
- * Skida analiticki sloj sa igraca za korisnike bez paketa.
+ * Da li paket vidi projekciju ovog igraca.
  *
- * Cena i projekcija ostaju — bez njih se postava ne moze ni sastaviti, a
- * to je deo proizvoda koji je namerno besplatan. Ono sto se naplacuje —
- * obrazlozenje, forma, minutaza, vlasnistvo i trend cene — ne odlazi u
- * pregledac uopste, pa nema sta da se otkljuca iz alatki za razvoj.
+ * Ultra vidi sve. Ostali vide projekciju samo za igrace iz izbora koje su
+ * platili: besplatan izbor svako, Plus izbore Plus i jaci, Pro izbore Pro
+ * i jaci. Bez ovoga je Plus kupovao tri izbora, a u tabeli ispod ionako
+ * video projekcije cele lige.
+ */
+export function vidiProjekciju(tier: Tier, p: Pick<PricedPlayer, 'tier_pick'>): boolean {
+  if (tier === 'ULTRA') return true;
+  const izbor = p.tier_pick as Tier | null;
+  return !!izbor && izbor in TIER_RANK && TIER_RANK[tier] >= TIER_RANK[izbor];
+}
+
+/**
+ * Jedino mesto koje odlucuje sta od igraca sme u pregledac.
+ *
+ *   svako       cena, protivnik, tezina meca, domaci/gost, status
+ *   Pro i jaci  vlasnistvo, prosek, forma, minutaza, trend cene
+ *   svoj izbor  projekcija, vrednost, obrazlozenje (Ultra: svi igraci)
+ *
+ * Skinuto se ne sakriva u komponenti nego ne odlazi sa servera, pa nema
+ * sta da se procita iz alatki za razvoj. Oznaka izbora (`tier_pick`) se
+ * skida sa izbora jaceg paketa — i samo ime izbora je ono sto se prodaje.
+ *
+ * Bez punog pristupa lista ide po ceni. Poredak po vrednosti bi i bez
+ * ijednog broja rekao ko je najbolji.
  */
 export function trimForTier(players: PricedPlayer[], tier: Tier): PricedPlayer[] {
-  if (TIER_RANK[tier] > 0) return players;
-  return players.map((p) => ({
-    ...p,
-    why_sr: null,
-    why_en: null,
-    form: null,
-    season_avg: null,
-    minutes: null,
-    ownership: null,
-    price_trend: null
-  }));
+  const pro = TIER_RANK[tier] >= TIER_RANK.PRO;
+
+  const out = players.map((p) => {
+    const q = { ...p };
+    if (!pro) {
+      q.ownership = null;
+      q.season_avg = null;
+      q.form = null;
+      q.minutes = null;
+      q.price_trend = null;
+    }
+    if (!vidiProjekciju(tier, p)) {
+      q.projected = null as unknown as number;
+      q.value_score = null as unknown as number;
+      q.why_sr = null;
+      q.why_en = null;
+      q.tier_pick = null;
+      q.pick_group = null;
+    }
+    return q;
+  });
+
+  return tier === 'ULTRA' ? out : out.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
 }
 
 export async function getMyEntries() {

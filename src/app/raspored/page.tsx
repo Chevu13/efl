@@ -9,6 +9,7 @@ import {
   getLeaderboard,
   getMyTier,
   getPricedPlayers,
+  trimForTier,
   getTeams
 } from '@/lib/data';
 import { num, untilLabel } from '@/lib/format';
@@ -108,7 +109,7 @@ export default async function Raspored() {
             round={round}
             fixtures={fixtures}
             lines={lines}
-            players={players}
+            players={trimForTier(players, me.tier)}
             teams={teams}
             board={board}
             loggedIn={!!me.userId}

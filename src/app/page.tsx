@@ -7,7 +7,7 @@ import CourtBackdrop from '@/components/ui/CourtBackdrop';
 import { Chip, Meter, RowDivider, SectionHead } from '@/components/ui/primitives';
 import { Delta, FormBars } from '@/components/ui/Stat';
 import { LinkButton } from '@/components/ui/Button';
-import { getCurrentRound, getFixtures, getMyTier, getPricedPlayers, getTeams } from '@/lib/data';
+import { getCurrentRound, getFixtures, getMyTier, getPricedPlayers, getTeams, trimForTier } from '@/lib/data';
 import { edge, mecevi, num, signed, teamName, untilLabel, valueClass } from '@/lib/format';
 import { PLANS, priceLabel } from '@/lib/config';
 import { isPremium } from '@/lib/types';
@@ -16,18 +16,22 @@ export const revalidate = 60;
 
 export default async function Home() {
   const [round, teams, me] = await Promise.all([getCurrentRound(), getTeams(), getMyTier()]);
-  const [players, fixtures] = round
+  const [sviIgraci, fixtures] = round
     ? await Promise.all([getPricedPlayers(round.id), getFixtures(round.id)])
     : [[], []];
+  /* Naslovna je javna — sve ide kroz isto pravilo vidljivosti kao tabela. */
+  const players = trimForTier(sviIgraci, me.tier);
 
+  /* Na naslovnoj je besplatan izbor: skripta ga bira kao igraca sa najvecom
+     razlikom izmedju projekcije i cene u celom kolu, pa je to i dalje
+     „najveca razlika" — ali bez otkrivanja izbora iz placenih paketa. */
   const free = players.find((p) => p.tier_pick === 'FREE') ?? players[0];
-  /* Na naslovnoj stoji igrac sa najvecom razlikom izmedju projekcije i
-     cene — i to samo ako ima fotografiju, jer je kompozicija nosi. */
-  const hero =
-    [...players]
-      .filter((p) => p.photo)
-      .sort((a, b) => (edge(b) ?? -99) - (edge(a) ?? -99))[0] ?? free;
-  const top = [...players].sort((a, b) => (edge(b) ?? -99) - (edge(a) ?? -99)).slice(0, 6);
+  const hero = free;
+  /* Rang lista: samo igraci cija je projekcija vidljiva ovom nalogu. */
+  const top = players
+    .filter((p) => p.projected != null)
+    .sort((a, b) => (edge(b) ?? -99) - (edge(a) ?? -99))
+    .slice(0, 6);
   const premium = isPremium(me.tier);
 
   return (

@@ -99,7 +99,7 @@ export default function Nav({
                                 ${on ? 'text-ink' : 'text-ink-3 hover:text-ink'}`}
                   >
                     {l.label}
-                    {l.premium && !premium && (
+                    {l.premium && tier !== 'ULTRA' && (
                       <LockIcon className="ml-1.5 h-3 w-3 text-ink-4" />
                     )}
                     <span
@@ -212,7 +212,7 @@ export default function Nav({
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-2 font-display text-[16px] font-extrabold uppercase tracking-tight">
                             {l.label}
-                            {l.premium && !premium && <LockIcon className="h-3.5 w-3.5 text-ink-4" />}
+                            {l.premium && tier !== 'ULTRA' && <LockIcon className="h-3.5 w-3.5 text-ink-4" />}
                           </span>
                           <span className="mt-0.5 block text-[12.5px] text-ink-3">{l.desc}</span>
                         </span>

@@ -100,9 +100,9 @@ export async function POST(req: Request) {
     needTier: NEXT_TIER[tier as Tier],
     violations: result.violations,
 
-    /* Promena kapitena je besplatna i vidi se svima — to je najbrza
-       korist koju alat moze da ponudi. */
-    captainMove: result.captainMove
+    /* Promena kapitena otkriva ko u tvom timu ima najvecu projekciju, a
+       projekcije van izbora kola su Ultra — zato i ona. */
+    captainMove: tier === 'ULTRA' && result.captainMove
       ? {
           from: lite(result.captainMove.from),
           to: lite(result.captainMove.to),
