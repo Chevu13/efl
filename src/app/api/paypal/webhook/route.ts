@@ -74,6 +74,21 @@ export async function POST(req: Request) {
     }
     console.warn('[paypal/webhook] provera potpisa preskocena (samo sandbox)');
   } else {
+    /* Bez zaglavlja potpisa zahtev sigurno nije od PayPal-a — odbija se
+       ovde, bez poziva prema PayPal-u. Ranije je isao na proveru, PayPal
+       ga je odbio kao neispravan, a to se vracalo kao 500 i izgledalo kao
+       kvar sa nase strane. */
+    const potpis = [
+      'paypal-auth-algo',
+      'paypal-cert-url',
+      'paypal-transmission-id',
+      'paypal-transmission-sig',
+      'paypal-transmission-time'
+    ];
+    if (potpis.some((h) => !req.headers.get(h))) {
+      return NextResponse.json({ error: 'Nedostaje potpis.' }, { status: 401 });
+    }
+
     let ok = false;
     try {
       ok = await verifyWebhook(req.headers, event);
