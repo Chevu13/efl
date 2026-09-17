@@ -6,7 +6,7 @@ import { TIER_RANK, type Tier } from './types';
  *
  * Pravilo vlasnika sajta: ko ima Plus i hoce Pro, prelazi na Pro odmah,
  * placa samo razliku u ceni (Pro - Plus), a Pro mu vazi do istog datuma
- * do kog je vazio Plus. Isto za Plus -> Ultra i Pro -> Ultra.
+ * do kog je vazio Plus.
  *
  * Ovo je cista funkcija nad redovima pretplate — bez baze i bez mreze —
  * jer isti racun treba na tri mesta: stranica cena ga prikazuje, ruta za

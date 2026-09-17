@@ -59,11 +59,11 @@ export const absUrl = (path = '/') => `${SITE_URL}${path.startsWith('/') ? path 
 /* PAKETI                                                              */
 /* ------------------------------------------------------------------ */
 
-export type PlanCode = 'PLUS' | 'PRO' | 'ULTRA';
+export type PlanCode = 'PLUS' | 'PRO';
 
 export type Plan = {
   code: PlanCode;
-  tier: Exclude<Tier, 'FREE'>;
+  tier: Exclude<Tier, 'FREE' | 'ULTRA'>;
   name: string;
   /** Cena u centima — nikad ne računamo u float-u. */
   priceCents: number;
@@ -75,50 +75,40 @@ export type Plan = {
   featured?: boolean;
 };
 
+/*
+ * Dva plaćena paketa. `ULTRA` ostaje samo u tipu `Tier`, zbog naloga koji
+ * ga već imaju (ručno dodeljen admin) — ima sva prava kao Pro, ali se više
+ * ne prodaje.
+ */
 export const PLANS: Plan[] = [
   {
     code: 'PLUS',
     tier: 'PLUS',
     name: 'Plus',
-    /* ponytail: privremeno 2 EUR radi probe naplate — vratiti na 900. */
     priceCents: 200,
     days: 30,
-    pitch: 'Po jedan izbor iz svakog cenovnog ranga.',
+    pitch: 'Po dva izbora za svaku poziciju u svakom cenovnom rangu — i koga da izbegneš.',
     features: [
-      'Sve iz besplatnog paketa',
-      'Skup, srednji i jeftin izbor — po jedan, sa detaljnim obrazloženjem',
-      'Tabela kola sa cenom i protivnikom za sve igrače',
-      'Sortiranje i filteri po poziciji, timu i ceni'
+      'Besplatan izbor kola',
+      '18 izbora: po 2 za bekove, krila i centre u svakom cenovnom rangu',
+      '9 igrača koje treba izbegavati za cenu koju traže',
+      'Tabela kola sa cenom i protivnikom za sve igrače'
     ]
   },
   {
     code: 'PRO',
     tier: 'PRO',
     name: 'Pro',
-    priceCents: 1900,
+    priceCents: 2500,
     days: 30,
     featured: true,
-    pitch: 'Po tri izbora na svakoj poziciji, u sva tri cenovna ranga.',
+    pitch: 'Najbolji izbori kola, cela baza projekcija i optimizator tima.',
     features: [
       'Sve iz Plus paketa',
-      'Bek, krilo i centar — po tri izbora, skup, srednji i jeftin',
-      'Detaljno obrazloženje za svaki od devet izbora',
-      'Vlasništvo, prosek i očekivana minutaža za sve igrače'
-    ]
-  },
-  {
-    code: 'ULTRA',
-    tier: 'ULTRA',
-    name: 'Ultra',
-    priceCents: 2900,
-    days: 30,
-    pitch: 'Cela baza i optimizator koji sam nadje četiri izmene.',
-    features: [
-      'Sve iz Pro paketa',
-      'Cela baza igrača sa projekcijom za svakog',
-      'Optimizator sam pravi najbolje 4 izmene po kreditu',
-      'Svaka izmena sa obrazloženjem i računom budžeta',
-      'Sortiranje cele lige po razlici i vrednosti'
+      'Top 5 izbora kola i kapiten — samo u Pro paketu',
+      'Projekcija za svakog igrača u ligi',
+      'Optimizator sam predlaže 4 najbolje izmene',
+      'Vlasništvo, prosek i minutaža za sve igrače'
     ]
   }
 ];
@@ -155,50 +145,46 @@ export function planForAmount(eur: number): Plan {
 /* ------------------------------------------------------------------ */
 
 /**
- * Cenovni rangovi. Isti pragovi vaze i za dodelu izbora u skripti i za
+ * Cenovni rangovi. Isti pragovi važe i za dodelu izbora u skripti i za
  * naslove na sajtu, pa stoje ovde a ne na dva mesta.
  */
 export const PRICE_BANDS = [
-  { key: 'skup', label: 'Skup', desc: '12 kredita i vise', min: 12, max: Infinity },
-  { key: 'srednji', label: 'Srednji', desc: 'od 8 do 12 kredita', min: 8, max: 12 },
-  { key: 'jeftin', label: 'Jeftin', desc: 'do 8 kredita', min: 0, max: 8 }
+  { key: 'skup', label: 'Skup', desc: 'više od 12 kredita' },
+  { key: 'srednji', label: 'Srednji', desc: 'od 8 do 12 kredita' },
+  { key: 'jeftin', label: 'Jeftin', desc: 'manje od 8 kredita' }
 ] as const;
 
 export type PriceBand = (typeof PRICE_BANDS)[number]['key'];
 
 export const bandOf = (price: number | null): PriceBand =>
-  price == null || price < 8 ? 'jeftin' : price < 12 ? 'srednji' : 'skup';
+  price == null || price < 8 ? 'jeftin' : price <= 12 ? 'srednji' : 'skup';
 
 export const bandLabel = (key: string) =>
   PRICE_BANDS.find((b) => b.key === key)?.label ?? key;
 
 /**
- * Sta koji paket dobija u izborima kola.
+ * Šta koji paket dobija u izborima kola.
  *
- * FREE  — jedan izbor, onaj sa najvecom razlikom projekcije i cene.
- * PLUS  — jos tri: po jedan iz svakog cenovnog ranga.
- * PRO   — jos devet: svaka pozicija puta svaki cenovni rang.
- * ULTRA — sve to, plus cela baza i optimizator.
+ * FREE — jedan izbor kola.
+ * PLUS — za svaku poziciju i svaki cenovni rang po 2 izbora (18), plus po
+ *        jedan igrač koga treba izbegavati (9).
+ * PRO  — sve to, plus top 5 izbora kola i kapiten, koji se ne dele ni sa
+ *        Plus paketom, cela baza projekcija i optimizator.
  *
- * Broj se ne kuca rucno u komponenti: skripta dodeljuje `tier_pick` i
- * `pick_group`, a stranica samo grupise ono sto joj server posalje.
+ * Ko je u kom pretincu odlučuje skripta pri uvozu (`tier_pick`,
+ * `pick_group`); stranica samo grupiše ono što joj server pošalje.
+ * Izbegavanje nosi `pick_group` sa sufiksom IZBEGNI.
  */
-export const PICK_LIMIT: Record<Tier, number> = {
-  FREE: 1,
-  PLUS: 4,
-  PRO: 13,
-  ULTRA: 13
-};
+export const IZBEGNI = '-izbegni';
 
 /** Koliko zamena optimizator otkriva u celosti. */
 export const OPTIMIZER_LIMIT: Record<Tier, number> = {
-  /* Optimizator je Ultra. Nizi paketi vide koliko poena zamene donose i
-     da ih ima, ali ne i koje su — ime igraca sa projekcijom je upravo ono
-     sto izbori kola ne otkrivaju. */
+  /* Optimizator je Pro. Niži paketi vide koliko poena zamene donose i
+     da ih ima, ali ne i koje su. */
   FREE: 0,
   PLUS: 0,
-  PRO: 0,
-  /* Cetiri izmene — koliko zvanicna igra dozvoljava besplatno po kolu. */
+  /* Četiri izmene — koliko zvanična igra dozvoljava besplatno po kolu. */
+  PRO: 4,
   ULTRA: 4
 };
 
@@ -206,8 +192,8 @@ export const OPTIMIZER_LIMIT: Record<Tier, number> = {
 export const NEXT_TIER: Record<Tier, PlanCode> = {
   FREE: 'PLUS',
   PLUS: 'PRO',
-  PRO: 'ULTRA',
-  ULTRA: 'ULTRA'
+  PRO: 'PRO',
+  ULTRA: 'PRO'
 };
 
 /* ------------------------------------------------------------------ */

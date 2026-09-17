@@ -2,7 +2,7 @@ import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import * as mock from './mock';
 import { teamName } from './format';
-import { TIER_RANK } from './types';
+import { TIER_RANK, jePro } from './types';
 import type {
   ChallengeLine,
   Coach,
@@ -229,13 +229,13 @@ export function activeSubscription(subs: Subscription[]): Subscription | null {
 /**
  * Da li paket vidi projekciju ovog igraca.
  *
- * Ultra vidi sve. Ostali vide projekciju samo za igrace iz izbora koje su
+ * Pro vidi sve. Ostali vide projekciju samo za igrace iz izbora koje su
  * platili: besplatan izbor svako, Plus izbore Plus i jaci, Pro izbore Pro
  * i jaci. Bez ovoga je Plus kupovao tri izbora, a u tabeli ispod ionako
  * video projekcije cele lige.
  */
 export function vidiProjekciju(tier: Tier, p: Pick<PricedPlayer, 'tier_pick'>): boolean {
-  if (tier === 'ULTRA') return true;
+  if (jePro(tier)) return true;
   const izbor = p.tier_pick as Tier | null;
   return !!izbor && izbor in TIER_RANK && TIER_RANK[tier] >= TIER_RANK[izbor];
 }
@@ -245,7 +245,7 @@ export function vidiProjekciju(tier: Tier, p: Pick<PricedPlayer, 'tier_pick'>): 
  *
  *   svako       cena, protivnik, tezina meca, domaci/gost, status
  *   Pro i jaci  vlasnistvo, prosek, forma, minutaza, trend cene
- *   svoj izbor  projekcija, vrednost, obrazlozenje (Ultra: svi igraci)
+ *   svoj izbor  projekcija, vrednost, obrazlozenje (Pro: svi igraci)
  *
  * Skinuto se ne sakriva u komponenti nego ne odlazi sa servera, pa nema
  * sta da se procita iz alatki za razvoj. Oznaka izbora (`tier_pick`) se
@@ -277,7 +277,7 @@ export function trimForTier(players: PricedPlayer[], tier: Tier): PricedPlayer[]
     return q;
   });
 
-  return tier === 'ULTRA' ? out : out.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+  return jePro(tier) ? out : out.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
 }
 
 export async function getMyEntries() {

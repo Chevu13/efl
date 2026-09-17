@@ -55,7 +55,7 @@ export default function PricingTable({
       </div>
 
       {/* placeni paketi */}
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
+      <div className="mt-4 grid gap-4 md:grid-cols-2">
         {PLANS.map((plan) => {
           const active = plan.tier === tier;
           const owned = TIER_RANK[tier] >= TIER_RANK[plan.tier];

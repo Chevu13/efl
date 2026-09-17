@@ -20,12 +20,12 @@ import {
   vidiProjekciju
 } from '@/lib/data';
 import { edge, num, signed, teamName, untilLabel, valueClass } from '@/lib/format';
-import { LINEUP, METRIKE, PLANS, priceLabel } from '@/lib/config';
+import { IZBEGNI, LINEUP, METRIKE, PLANS, priceLabel } from '@/lib/config';
 import { autoBuild } from '@/lib/lineup';
 import { optimize } from '@/lib/optimizer';
 import { nadogradnja } from '@/lib/nadogradnja';
 import { paypalConfigured } from '@/lib/paypal/client';
-import { TIER_RANK, type Coach, type PricedPlayer, type Tier } from '@/lib/types';
+import { TIER_RANK, jePro, type Coach, type PricedPlayer, type Tier } from '@/lib/types';
 
 export const revalidate = 60;
 
@@ -86,18 +86,19 @@ export default async function Home() {
      vidljivosti kao tabela igrača. `sviIgraci` ostaje samo na serveru. */
   const players = trimForTier(sviIgraci, me.tier);
   const hero = players.find((p) => p.tier_pick === 'FREE') ?? players[0];
-  const ultra = me.tier === 'ULTRA';
+  const pro = jePro(me.tier);
 
   /* Top 3: igrači čija je projekcija vidljiva ovom nalogu, po razlici. Ako
      ih je manje od tri, ostatak su zaključane kartice izbora iz jačeg
      paketa — one se crtaju na serveru i otkrivaju samo poziciju, tim i
      protivnika. */
+  const izbegni = (p: PricedPlayer) => String(p.pick_group ?? '').endsWith(IZBEGNI);
   const top = players
-    .filter((p) => p.projected != null)
+    .filter((p) => p.projected != null && !izbegni(p))
     .sort((a, b) => (edge(b) ?? -99) - (edge(a) ?? -99))
     .slice(0, 3);
   const zakljucaniIzbori = sviIgraci
-    .filter((p) => p.tier_pick && !vidiProjekciju(me.tier, p))
+    .filter((p) => p.tier_pick && !izbegni(p) && !vidiProjekciju(me.tier, p))
     .sort(
       (a, b) => TIER_RANK[a.tier_pick as Tier] - TIER_RANK[b.tier_pick as Tier]
     );
@@ -117,7 +118,7 @@ export default async function Home() {
   const optimizator = round ? pregledOptimizatora(sviIgraci, treneri) : null;
   const najjeftiniji = Math.min(...PLANS.map((p) => p.priceCents));
   /* Doplata za nadogradnju se prikazuje i na naslovnoj — isti racun kao na /paketi. */
-  const pretplate = me.userId && !ultra ? await getMySubscriptions() : [];
+  const pretplate = me.userId && !pro ? await getMySubscriptions() : [];
 
   return (
     <>
@@ -297,7 +298,7 @@ export default async function Home() {
                   Još {josIzbora} premium preporuka ovog kola
                 </span>
                 <span className="mt-0.5 block text-[12.5px] text-ink-3">
-                  Po igrač iz svakog cenovnog ranga i po tri na svakoj poziciji.
+                  Po 2 izbora za svaku poziciju i cenovni rang u Plus paketu, top izbori kola u Pro.
                 </span>
               </span>
               <span className="shrink-0 font-semibold text-brand transition-transform duration-fast group-hover:translate-x-0.5">
@@ -367,7 +368,7 @@ export default async function Home() {
       {/* ================= OPTIMIZATOR ================= */}
       <section className="page py-14 sm:py-16">
         <SectionHead
-          eyebrow="Ultra alat"
+          eyebrow="Pro alat"
           title="Optimizator postave"
           desc={`Ubaci svoju postavu, a alat pronalazi do 4 zamene koje donose najviše poena u okviru ${LINEUP.budget} kredita — uz razlog za svaku.`}
         />
@@ -437,9 +438,9 @@ export default async function Home() {
             <LinkButton href="/optimizator" className="mt-6" full>
               Otvori optimizator
             </LinkButton>
-            {!ultra && (
+            {!pro && (
               <p className="mt-3 text-center text-[11.5px] text-ink-4">
-                Pojedinačne zamene su deo Ultra paketa
+                Pojedinačne zamene su deo Pro paketa
               </p>
             )}
           </div>
@@ -483,7 +484,7 @@ export default async function Home() {
       </section>
 
       {/* ================= PAKETI ================= */}
-      {!ultra && (
+      {!pro && (
         <section className="page py-14 sm:py-16">
           <SectionHead
             eyebrow="Paketi"

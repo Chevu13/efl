@@ -156,7 +156,7 @@ export default function RoundSchedule({
               <h2 className="text-[20px] uppercase">Izazov kola</h2>
               <p className="mt-1.5 max-w-md text-small text-ink-3">
                 Pogodi pobednike mečeva i da li igrači prelaze svoju cenu. Bez uloga — pobednik
-                kola dobija Pro, a pobednik meseca Ultra.
+                kola dobija Pro na nedelju dana, a pobednik meseca Pro na ceo mesec.
               </p>
             </div>
             <div className="text-right">

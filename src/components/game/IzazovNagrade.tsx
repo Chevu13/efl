@@ -2,7 +2,7 @@
  * Nagrade izazova kola — isti tekst na naslovnoj i na stranici izazova.
  *
  * Pravilo vlasnika sajta: pobednik kola dobija Pro za sledeću nedelju,
- * pobednik meseca dobija Ultra (najjači paket) za sledeći mesec.
+ * pobednik meseca dobija Pro za ceo sledeći mesec.
  *
  * Bez hook-ova, pa radi i u serverskoj i u klijentskoj komponenti.
  */
@@ -15,7 +15,7 @@ export const NAGRADE = [
   },
   {
     ko: 'Pobednik meseca',
-    paket: 'Ultra',
+    paket: 'Pro',
     trajanje: 'ceo sledeći mesec',
     opis: 'Najviše tačnih odgovora u svim kolima meseca.'
   }

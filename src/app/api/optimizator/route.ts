@@ -3,7 +3,7 @@ import { getCoaches, getMyTier, getPricedPlayers } from '@/lib/data';
 import { optimize, roleLabel } from '@/lib/optimizer';
 import { FORMATIONS, OPTIMIZER_LIMIT, NEXT_TIER } from '@/lib/config';
 import { emptyLineup, type LineupState } from '@/lib/lineup';
-import type { PricedPlayer, Tier } from '@/lib/types';
+import { jePro, type PricedPlayer, type Tier } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,12 +97,13 @@ export async function POST(req: Request) {
     budget: result.budget,
     totalFound: result.totalFound,
     lockedCount: Math.max(0, result.totalFound - visible),
-    needTier: NEXT_TIER[tier as Tier],
+    /* Optimizator otključava samo Pro — ne sledeći paket po redu. */
+    needTier: 'PRO' as const,
     violations: result.violations,
 
     /* Promena kapitena otkriva ko u tvom timu ima najvecu projekciju, a
-       projekcije van izbora kola su Ultra — zato i ona. */
-    captainMove: tier === 'ULTRA' && result.captainMove
+       projekcije van izbora kola su Pro — zato i ona. */
+    captainMove: jePro(tier as Tier) && result.captainMove
       ? {
           from: lite(result.captainMove.from),
           to: lite(result.captainMove.to),

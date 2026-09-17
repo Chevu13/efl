@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   alternates: { canonical: '/paketi' },
   title: 'Paketi i cene',
   description:
-    'Šta dobijaš besplatno, a šta u paketima Plus, Pro i Ultra: izbori kola, projekcije za sve igrače i optimizator postave.'
+    'Šta dobijaš besplatno, a šta u paketima Plus i Pro: izbori kola, igrači koje treba izbegavati, projekcije za sve igrače i optimizator postave.'
 };
 
 /**
@@ -29,13 +29,16 @@ export const metadata: Metadata = {
 
 type Celija = boolean | string;
 
-const POREDJENJE: { sta: string; free: Celija; plus: Celija; pro: Celija; ultra: Celija }[] = [
-  { sta: 'Izbor kola sa obrazloženjem', free: '1', plus: '4', pro: '13', ultra: '13' },
-  { sta: 'Raspored, procena mečeva i izazov kola', free: true, plus: true, pro: true, ultra: true },
-  { sta: 'Cene i protivnici za sve igrače', free: 'početak liste', plus: true, pro: true, ultra: true },
-  { sta: 'Vlasništvo, prosek i minutaža', free: false, plus: false, pro: true, ultra: true },
-  { sta: 'Projekcija za svakog igrača u ligi', free: false, plus: false, pro: false, ultra: true },
-  { sta: 'Optimizator — 4 najbolje zamene', free: false, plus: false, pro: false, ultra: true }
+const POREDJENJE: { sta: string; free: Celija; plus: Celija; pro: Celija }[] = [
+  { sta: 'Besplatan izbor kola', free: true, plus: true, pro: true },
+  { sta: 'Raspored, procena mečeva i izazov kola', free: true, plus: true, pro: true },
+  { sta: 'Izbori po poziciji i cenovnom rangu', free: false, plus: '18', pro: '18' },
+  { sta: 'Igrači koje treba izbegavati', free: false, plus: '9', pro: '9' },
+  { sta: 'Cene i protivnici za sve igrače', free: 'početak liste', plus: true, pro: true },
+  { sta: 'Top 5 izbora kola i kapiten', free: false, plus: false, pro: true },
+  { sta: 'Projekcija za svakog igrača u ligi', free: false, plus: false, pro: true },
+  { sta: 'Vlasništvo, prosek i minutaža', free: false, plus: false, pro: true },
+  { sta: 'Optimizator — 4 najbolje izmene', free: false, plus: false, pro: true }
 ];
 
 const PITANJA: [string, string][] = [
@@ -99,7 +102,7 @@ export default async function Paketi() {
 
         <div className="mt-6 overflow-hidden rounded-md border border-line">
           <div className="overflow-x-auto">
-            <table className="tbl min-w-[620px]">
+            <table className="tbl min-w-[520px]">
               <caption className="sr-only">Poređenje paketa</caption>
               <thead>
                 <tr>
@@ -124,7 +127,7 @@ export default async function Paketi() {
                     <th scope="row" className="text-left text-[13.5px] font-medium text-ink-2">
                       {red.sta}
                     </th>
-                    {[red.free, red.plus, red.pro, red.ultra].map((c, i) => (
+                    {[red.free, red.plus, red.pro].map((c, i) => (
                       <td key={i} className="text-center">
                         <Oznaka vrednost={c} />
                       </td>

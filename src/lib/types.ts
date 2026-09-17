@@ -2,6 +2,8 @@ export type Tier = 'FREE' | 'PLUS' | 'PRO' | 'ULTRA';
 export const TIER_RANK: Record<Tier, number> = { FREE: 0, PLUS: 1, PRO: 2, ULTRA: 3 };
 export const canAccess = (mine: Tier, need: Tier) => TIER_RANK[mine] >= TIER_RANK[need];
 export const isPremium = (t: Tier) => TIER_RANK[t] > 0;
+/** Pro ili jači — cela baza projekcija, top izbori i optimizator. */
+export const jePro = (t: Tier) => TIER_RANK[t] >= TIER_RANK.PRO;
 
 export type Position = 'G' | 'F' | 'C';
 

@@ -9,7 +9,7 @@ import CodeDialog from './nav/CodeDialog';
 import { ACCOUNT, PRIMARY, isActive } from './nav/links';
 import { createClient } from '@/lib/supabase/client';
 import { storageUrl, untilLabel } from '@/lib/format';
-import { isPremium, type Tier } from '@/lib/types';
+import { isPremium, jePro, type Tier } from '@/lib/types';
 
 /**
  * Navigacija.
@@ -99,7 +99,7 @@ export default function Nav({
                                 ${on ? 'text-ink' : 'text-ink-3 hover:text-ink'}`}
                   >
                     {l.label}
-                    {l.premium && tier !== 'ULTRA' && (
+                    {l.premium && !jePro(tier) && (
                       <LockIcon className="ml-1.5 h-3 w-3 text-ink-4" />
                     )}
                     <span
@@ -130,7 +130,7 @@ export default function Nav({
               </span>
             )}
 
-            {tier !== 'ULTRA' && (
+            {!jePro(tier) && (
               <Link
                 href="/paketi"
                 aria-current={isActive(path, '/paketi') ? 'page' : undefined}
@@ -224,7 +224,7 @@ export default function Nav({
                         <span className="min-w-0 flex-1">
                           <span className="flex items-center gap-2 font-display text-[16px] font-extrabold uppercase tracking-tight">
                             {l.label}
-                            {l.premium && tier !== 'ULTRA' && <LockIcon className="h-3.5 w-3.5 text-ink-4" />}
+                            {l.premium && !jePro(tier) && <LockIcon className="h-3.5 w-3.5 text-ink-4" />}
                           </span>
                           <span className="mt-0.5 block text-[12.5px] text-ink-3">{l.desc}</span>
                         </span>
@@ -244,7 +244,7 @@ export default function Nav({
                     Paketi i cene
                   </span>
                   <span className="mt-0.5 block text-[12.5px] text-ink-3">
-                    Šta dobijaš u Plus, Pro i Ultra paketu
+                    Šta dobijaš u Plus i Pro paketu
                   </span>
                 </span>
                 <ChevronIcon />

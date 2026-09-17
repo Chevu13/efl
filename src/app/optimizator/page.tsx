@@ -57,7 +57,7 @@ export default async function Optimizator() {
           <div className="flex items-center gap-2">
             <Chip tone={premium ? 'brand' : 'default'}>{me.tier}</Chip>
             <Chip>
-              {visible === 0 ? 'Samo Ultra' : `${visible} ${visible === 1 ? 'zamena' : 'zamene'}`}
+              {visible === 0 ? 'Samo Pro' : `${visible} ${visible === 1 ? 'zamena' : 'zamene'}`}
             </Chip>
           </div>
         }

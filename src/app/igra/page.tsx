@@ -11,7 +11,7 @@ import {
 } from '@/lib/data';
 import { untilLabel } from '@/lib/format';
 import { LINEUP } from '@/lib/config';
-import { TIER_RANK } from '@/lib/types';
+import { jePro } from '@/lib/types';
 
 export const revalidate = 30;
 
@@ -67,7 +67,7 @@ export default async function Igra() {
           pool={trimForTier(pool, me.tier)}
           coaches={coaches}
           teams={teams}
-          canOptimize={me.tier === 'ULTRA'}
+          canOptimize={jePro(me.tier)}
         />
       </div>
     </div>

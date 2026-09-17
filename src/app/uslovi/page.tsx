@@ -90,7 +90,7 @@ export default function Uslovi() {
         <ul>
           <li>Ucesce je besplatno i bez uloga.</li>
           <li>
-            Pobednik kola dobija Pro paket za sledecih 7 dana. Pobednik meseca dobija Ultra paket
+            Pobednik kola dobija Pro paket za sledecih 7 dana. Pobednik meseca dobija Pro paket
             za ceo sledeci mesec.
           </li>
           <li>

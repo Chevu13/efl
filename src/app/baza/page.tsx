@@ -5,7 +5,7 @@ import { SectionHead, EmptyState, Chip } from '@/components/ui/primitives';
 import { StatStrip } from '@/components/ui/Stat';
 import { getAllPlayers, getCurrentRound, getMyTier, getPricedPlayers, getTeams, trimForTier } from '@/lib/data';
 import { NEXT_TIER } from '@/lib/config';
-import { isPremium } from '@/lib/types';
+import { isPremium, jePro } from '@/lib/types';
 
 export const revalidate = 3600;
 
@@ -33,10 +33,10 @@ export default async function Baza() {
 
   const priced = round ? await getPricedPlayers(round.id) : [];
   const premium = isPremium(tier);
-  /* Cela baza sa projekcijom za svakog igraca je ono sto Ultra kupuje.
+  /* Cela baza sa projekcijom za svakog igraca je ono sto Pro kupuje.
      Ostali vide sve igrace sa cenom i protivnikom, a projekciju samo za
      svoje izbore — trimForTier to skida pre nego sto ode u pregledac. */
-  const svi = tier === 'ULTRA';
+  const svi = jePro(tier);
   const vidljivi = trimForTier(priced, tier);
   const visible = tier === 'FREE' ? vidljivi.slice(0, 15) : vidljivi;
 
@@ -87,7 +87,7 @@ export default async function Baza() {
               totalCount={priced.length}
               teams={teams}
               tier={tier}
-              need={svi ? undefined : 'ULTRA'}
+              need={svi ? undefined : 'PRO'}
             />
           </div>
         </section>
