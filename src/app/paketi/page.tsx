@@ -34,9 +34,8 @@ const POREDJENJE: { sta: string; free: Celija; plus: Celija; pro: Celija }[] = [
   { sta: 'Raspored, procena mečeva i izazov kola', free: true, plus: true, pro: true },
   { sta: 'Izbori po poziciji i cenovnom rangu', free: false, plus: '18', pro: '18' },
   { sta: 'Igrači koje treba izbegavati', free: false, plus: '9', pro: '9' },
-  { sta: 'Cene i protivnici za sve igrače', free: 'početak liste', plus: true, pro: true },
   { sta: 'Top 5 izbora kola i kapiten', free: false, plus: false, pro: true },
-  { sta: 'Projekcija za svakog igrača u ligi', free: false, plus: false, pro: true },
+  { sta: 'Cela lista kola sa projekcijom za svakog igrača', free: false, plus: false, pro: true },
   { sta: 'Vlasništvo, prosek i minutaža', free: false, plus: false, pro: true },
   { sta: 'Optimizator — 4 najbolje izmene', free: false, plus: false, pro: true }
 ];

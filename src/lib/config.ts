@@ -91,8 +91,7 @@ export const PLANS: Plan[] = [
     features: [
       'Besplatan izbor kola',
       '18 izbora: po 2 za bekove, krila i centre u svakom cenovnom rangu',
-      '9 igrača koje treba izbegavati za cenu koju traže',
-      'Tabela kola sa cenom i protivnikom za sve igrače'
+      '9 igrača koje treba izbegavati za cenu koju traže'
     ]
   },
   {
@@ -106,7 +105,7 @@ export const PLANS: Plan[] = [
     features: [
       'Sve iz Plus paketa',
       'Top 5 izbora kola i kapiten — samo u Pro paketu',
-      'Projekcija za svakog igrača u ligi',
+      'Cela lista kola sa projekcijom za svakog igrača',
       'Optimizator sam predlaže 4 najbolje izmene',
       'Vlasništvo, prosek i minutaža za sve igrače'
     ]

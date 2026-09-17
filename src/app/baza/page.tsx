@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import PlayerTable from '@/components/player/PlayerTable';
 import TeamRoster from '@/components/player/TeamRoster';
 import { SectionHead, EmptyState, Chip } from '@/components/ui/primitives';
+import { LinkButton } from '@/components/ui/Button';
 import { StatStrip } from '@/components/ui/Stat';
 import { getAllPlayers, getCurrentRound, getMyTier, getPricedPlayers, getTeams, trimForTier } from '@/lib/data';
 import { NEXT_TIER } from '@/lib/config';
@@ -33,12 +34,9 @@ export default async function Baza() {
 
   const priced = round ? await getPricedPlayers(round.id) : [];
   const premium = isPremium(tier);
-  /* Cela baza sa projekcijom za svakog igraca je ono sto Pro kupuje.
-     Ostali vide sve igrace sa cenom i protivnikom, a projekciju samo za
-     svoje izbore — trimForTier to skida pre nego sto ode u pregledac. */
+  /* Cela lista kola je ono sto Pro kupuje. Ostalima se tabela uopste ne
+     salje u pregledac, ni bez projekcija. */
   const svi = jePro(tier);
-  const vidljivi = trimForTier(priced, tier);
-  const visible = tier === 'FREE' ? vidljivi.slice(0, 15) : vidljivi;
 
   const byTeam = players.reduce<Record<string, typeof players>>((acc, p) => {
     (acc[p.team_code ?? '—'] ||= []).push(p);
@@ -82,13 +80,20 @@ export default async function Baza() {
             desc="Filtriraj po poziciji i timu, sortiraj po onome sto ti je bitno."
           />
           <div className="mt-6">
-            <PlayerTable
-              players={visible}
-              totalCount={priced.length}
-              teams={teams}
-              tier={tier}
-              need={svi ? undefined : 'PRO'}
-            />
+            {svi ? (
+              <PlayerTable
+                players={trimForTier(priced, tier)}
+                totalCount={priced.length}
+                teams={teams}
+                tier={tier}
+              />
+            ) : (
+              <EmptyState
+                title="Cela lista kola je deo Pro paketa"
+                desc={`Cena, projekcija, razlika i vrednost za svih ${priced.length} igrača. Plus dobija svoje izbore po poziciji i ceni na stranici Izbori kola.`}
+                action={<LinkButton href="/paketi">Uporedi pakete</LinkButton>}
+              />
+            )}
           </div>
         </section>
       )}

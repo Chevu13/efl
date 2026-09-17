@@ -56,7 +56,6 @@ export default async function Igraci() {
   /* Sve što ide u pregledač prolazi kroz trimForTier — projekcije za igrače
      van tvojih izbora ne napuštaju server. */
   const vidljivi = trimForTier(players, tier);
-  const tableRows = tier === 'FREE' ? vidljivi.slice(0, 12) : vidljivi;
   const poId = new Map(vidljivi.map((p) => [p.id, p]));
   const red = (p: PricedPlayer) => poId.get(p.id) ?? p;
 
@@ -240,21 +239,26 @@ export default async function Igraci() {
         <SectionHead
           eyebrow="Cela lista kola"
           title="Svi igrači sa cenom"
-          desc={
-            pro
-              ? 'Sortiraj po razlici, vrednosti, projekciji ili protivniku i pronađi sopstvene zaključke.'
-              : 'Cena i protivnik za sve igrače. Projekcija za celu ligu otključava se u Pro paketu.'
-          }
+          desc="Sortiraj po razlici, vrednosti, projekciji ili protivniku i pronađi sopstvene zaključke."
         />
-        <div className="mt-6">
-          <PlayerTable
-            players={tableRows}
-            totalCount={players.length}
-            teams={teams}
-            tier={tier}
-            need={need}
+        {pro ? (
+          <div className="mt-6">
+            <PlayerTable
+              players={vidljivi}
+              totalCount={players.length}
+              teams={teams}
+              tier={tier}
+              need={need}
+            />
+          </div>
+        ) : (
+          <ZakljucanPanel
+            paket="PRO"
+            naslov={`Svih ${players.length} igrača sa projekcijom`}
+            opis="Cela lista kola — cena, protivnik, projekcija, razlika i vrednost za svakog igrača u ligi — deo je Pro paketa."
+            mesta={['Projekcija', 'Razlika', 'Vrednost', 'Vlasništvo', 'Sortiranje']}
           />
-        </div>
+        )}
       </div>
     </div>
   );
