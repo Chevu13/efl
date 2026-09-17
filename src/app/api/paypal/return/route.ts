@@ -7,7 +7,7 @@ import {
   decodeRef,
   getOrder
 } from '@/lib/paypal/client';
-import { siteOrigin } from '@/lib/paypal/url';
+import { returnOrigin } from '@/lib/paypal/url';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +24,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const orderId = url.searchParams.get('token');
-  const origin = siteOrigin(req);
+  const origin = returnOrigin(req);
 
   const back = (status: string, extra: Record<string, string> = {}) => {
     const to = new URL('/placanje/uspeh', origin);

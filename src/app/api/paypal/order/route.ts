@@ -8,7 +8,7 @@ import {
   paypalConfigured,
   paypalEnv
 } from '@/lib/paypal/client';
-import { siteOrigin } from '@/lib/paypal/url';
+import { returnOrigin } from '@/lib/paypal/url';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Nepoznat paket.' }, { status: 400 });
   }
 
-  const origin = siteOrigin(req);
+  const origin = returnOrigin(req);
 
   try {
     const order = await createOrder({
