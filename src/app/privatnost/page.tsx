@@ -51,8 +51,8 @@ export default function Privatnost() {
             <b>Izazov kola:</b> tvoji odgovori i koliko je bilo tacnih.
           </li>
           <li>
-            <b>Placanje:</b> koji paket, kada, iznos i broj PayPal transakcije. Podatke o kartici i
-            PayPal nalogu nikad ne vidimo — njih obradjuje PayPal.
+            <b>Placanje:</b> koji paket, kada, iznos i broj transakcije. Podatke o kartici i
+            nalogu kod platnog servisa nikad ne vidimo — njih obradjuje platni servis.
           </li>
         </ul>
         <p>
@@ -83,7 +83,7 @@ export default function Privatnost() {
             <b>Vercel</b> — hosting sajta;
           </li>
           <li>
-            <b>PayPal</b> — naplata paketa;
+            <b>PayPal</b> ili drugi platni servis naveden pri kupovini — naplata paketa;
           </li>
           <li>
             <b>Resend</b> — slanje mejlova za potvrdu i lozinku;

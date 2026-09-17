@@ -13,9 +13,15 @@ export const metadata: Metadata = {
  * Cene i trajanje paketa citaju se iz config.ts, pa ovaj tekst ne moze
  * da zaostane za tabelom cena.
  *
- * ponytail: rok za povracaj (14 dana), merodavno pravo (Srbija) i
- * ogranicenje odgovornosti su razumne pocetne odluke, ne pravni savet —
- * proveriti sa pravnikom pre vece naplate.
+ * Povracaja novca nema — odluka vlasnika sajta. Jedini izuzetak je
+ * uplata posle koje se paket nije otkljucao: tada se paket otkljucava,
+ * jer usluga koja nije isporucena i nije prodata.
+ *
+ * ponytail: merodavno pravo (Srbija) i ogranicenje odgovornosti su
+ * pocetne odluke, ne pravni savet.
+ *
+ * Platni servis nije imenovan kao jedini — moze se promeniti bez
+ * menjanja uslova.
  */
 export default function Uslovi() {
   const mejl = <a href={`mailto:${SITE.email}`}>{SITE.email}</a>;
@@ -61,19 +67,22 @@ export default function Uslovi() {
             {PLANS.map((p) => `${p.name} ${priceLabel(p.priceCents)}`).join(', ')}.
           </li>
           <li>Nema automatske obnove — kad paket istekne, nalog se vraca na besplatan.</li>
-          <li>Placanje ide preko PayPal-a. Cene su u evrima.</li>
+          <li>
+            Placanje ide preko PayPal-a ili drugog platnog servisa navedenog pri kupovini. Cene su
+            u evrima.
+          </li>
           <li>Pristup se otkljucava odmah posle potvrdjene uplate.</li>
         </ul>
       </Odeljak>
 
-      <Odeljak id="povracaj" naslov="Povracaj novca">
+      <Odeljak id="povracaj" naslov="Bez povracaja novca">
         <p>
-          Ako paket nije otkljucan posle uplate, ili sajt u tom periodu nije radio kako je opisano,
-          pisi na {mejl} u roku od 14 dana od uplate i vracamo novac.
+          Uplate se ne vracaju. Pristup se otkljucava odmah posle uplate, pa kupovinom pristajes
+          da usluga pocne odmah i da nema prava na odustanak kad je paket otkljucan.
         </p>
         <p>
-          Posto se pristup otkljucava odmah, uplatom pristajes da pocne pre isteka roka za
-          odustanak. Povracaj za paket koji je radio a nije vise potreban odobravamo po proceni.
+          Ako je uplata prosla a paket se nije otkljucao, pisi na {mejl} sa brojem transakcije —
+          otkljucavamo paket za pun period.
         </p>
       </Odeljak>
 
@@ -102,8 +111,7 @@ export default function Uslovi() {
       <Odeljak id="prekid" naslov="Prekid">
         <p>
           Nalog mozes da ugasis kad hoces — pisi na {mejl}. Nalog koji krsi ova pravila mozemo da
-          ugasimo; ako je u pitanju placeni paket bez krsenja pravila, vracamo srazmeran deo
-          uplate.
+          ugasimo, bez povracaja uplate.
         </p>
       </Odeljak>
 
