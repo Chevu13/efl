@@ -116,7 +116,7 @@ export async function POST(req: Request) {
     case 'PAYMENT.CAPTURE.COMPLETED': {
       if (!paypalId) return NextResponse.json({ ok: true, ignored: 'bez id-ja naplate' });
 
-      const { userId, plan } = decodeRef(res.custom_id);
+      const { userId, plan, nadogradnjaOd } = decodeRef(res.custom_id);
       const amount = Number(res.amount?.value ?? 0);
 
       if (!userId) {
@@ -135,7 +135,8 @@ export async function POST(req: Request) {
         paypalId,
         amount,
         currency: res.amount?.currency_code,
-        orderId: res.supplementary_data?.related_ids?.order_id ?? null
+        orderId: res.supplementary_data?.related_ids?.order_id ?? null,
+        nadogradnjaOd
       });
 
       if (!granted.ok) {

@@ -9,6 +9,7 @@ import {
   paypalEnv
 } from '@/lib/paypal/client';
 import { returnOrigin } from '@/lib/paypal/url';
+import { nadogradnja } from '@/lib/nadogradnja';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,14 +49,33 @@ export async function POST(req: Request) {
 
   const origin = returnOrigin(req);
 
+  /* Nadogradnja se racuna ovde, iz baze — klijent salje samo koji paket
+     hoce, nikad iznos. Vlastite pretplate se citaju korisnikovim klijentom
+     (RLS), pa ne treba admin kljuc. */
+  const { data: redovi } = await sb
+    .from('subscriptions')
+    .select('id, tier, source, status, starts_at, ends_at')
+    .eq('user_id', user.id);
+  const nad = nadogradnja(redovi ?? [], plan.code);
+
   try {
     const order = await createOrder({
       plan,
       userId: user.id,
       returnUrl: `${origin}/api/paypal/return`,
       cancelUrl: `${origin}/placanje/otkazano?plan=${plan.code}`,
-      /* Dupli klik na dugme vraca istu narudzbinu umesto dve. */
-      requestId: `efl-${user.id}-${plan.code}-${Math.floor(Date.now() / 60000)}`
+      nadogradnja: nad
+        ? {
+            osnovaId: nad.osnovaId,
+            osnovaNaziv: planByCode(nad.osnova)?.name ?? nad.osnova,
+            iznosCents: nad.iznosCents,
+            vaziDo: nad.vaziDo
+          }
+        : undefined,
+      /* Dupli klik na dugme vraca istu narudzbinu umesto dve. Nadogradnja
+         ima svoj kljuc, da ne pokupi ranije napravljenu narudzbinu po
+         punoj ceni iz istog minuta. */
+      requestId: `efl-${user.id}-${plan.code}${nad ? `-u${nad.osnovaId}` : ''}-${Math.floor(Date.now() / 60000)}`
     });
 
     const url = approveUrl(order);

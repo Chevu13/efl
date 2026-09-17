@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import { planByCode, type PlanCode } from './config';
+import { nadogradnja } from './nadogradnja';
 import { TIER_RANK, type Tier } from './types';
 
 /**
@@ -23,6 +24,8 @@ export type GrantInput = {
   currency?: string;
   orderId?: string | null;
   source?: string;
+  /** Id pretplate koja se nadogradjuje, iz custom_id narudzbine. */
+  nadogradnjaOd?: string | null;
 };
 
 export type GrantResult =
@@ -60,26 +63,55 @@ export async function grantEntitlement(input: GrantInput): Promise<GrantResult> 
     };
   }
 
-  /* 2) Kada novi paket pocinje.
-        Nadovezuje se samo na aktivan paket ISTOG ili JACEG nivoa — to je
-        produzenje, i ne sme da pojede dane koji su vec placeni.
-        Nadogradnja (Plus -> Pro) pocinje odmah. Ranije se svaka kupovina
-        stavljala u red iza poslednjeg aktivnog paketa, pa je kupac platio
-        Pro i dobio ga tek kad mu istekne Plus. Preostali dani slabijeg
-        paketa i dalje teku, samo ih jaci paket prekriva. */
-  const { data: aktivni } = await sb
+  /* 2) Kada novi paket pocinje i dokle traje. */
+  const sada = new Date();
+  const { data: redovi } = await sb
     .from('subscriptions')
-    .select('tier, ends_at')
-    .eq('user_id', input.userId)
-    .gt('ends_at', new Date().toISOString());
+    .select('id, tier, source, status, starts_at, ends_at')
+    .eq('user_id', input.userId);
 
-  const kraj = (aktivni ?? [])
-    .filter((r) => TIER_RANK[r.tier as Tier] >= TIER_RANK[plan.tier])
-    .map((r) => new Date(r.ends_at as string).getTime())
-    .sort((a, b) => b - a)[0];
+  let startsAt: Date;
+  let endsAt: Date;
+  let nadogradjeno: PlanCode | null = null;
 
-  const startsAt = kraj ? new Date(kraj) : new Date();
-  const endsAt = new Date(startsAt.getTime() + plan.days * 864e5);
+  /* Nadogradnja: pocinje odmah i traje do kraja paketa koji se nadogradjuje.
+     Uslovi se racunaju iznova iz baze, istom funkcijom po kojoj je
+     narudzbina naplacena, i vaze samo ako je placena bar ta razlika — oznaka
+     iz custom_id sama po sebi ne daje nista. */
+  const nad = input.nadogradnjaOd ? nadogradnja(redovi ?? [], plan.code, sada) : null;
+  const placenoCents = input.amount != null ? Math.round(input.amount * 100) : null;
+
+  if (
+    nad &&
+    nad.osnovaId === input.nadogradnjaOd &&
+    (placenoCents == null || placenoCents >= nad.iznosCents)
+  ) {
+    startsAt = sada;
+    endsAt = new Date(nad.vaziDo);
+    nadogradjeno = nad.osnova;
+  } else if (input.nadogradnjaOd && placenoCents != null && placenoCents < plan.priceCents) {
+    /* Placena je razlika, ali osnova vise ne vazi — najcesce je istekla dok
+       je kupac bio na PayPal-u. Ne ostavljamo ga bez onoga sto je platio:
+       paket vazi do kraja stare osnove, a najmanje jedan dan. */
+    const osnova = (redovi ?? []).find((r) => String(r.id) === input.nadogradnjaOd);
+    if (!osnova?.ends_at) {
+      return { ok: false, error: `Nadogradnja bez vazece osnove (${input.nadogradnjaOd}).` };
+    }
+    startsAt = sada;
+    endsAt = new Date(Math.max(new Date(osnova.ends_at as string).getTime(), sada.getTime() + 864e5));
+  } else {
+    /* Obicna kupovina. Nadovezuje se samo na aktivan paket ISTOG ili JACEG
+       nivoa — to je produzenje i ne sme da pojede placene dane. Kupovina
+       jaceg paketa bez nadogradnje (npr. osnova je nagrada, ne uplata)
+       pocinje odmah i traje pun period. */
+    const kraj = (redovi ?? [])
+      .filter((r) => r.ends_at && new Date(r.ends_at as string) > sada)
+      .filter((r) => TIER_RANK[r.tier as Tier] >= TIER_RANK[plan.tier])
+      .map((r) => new Date(r.ends_at as string).getTime())
+      .sort((a, b) => b - a)[0];
+    startsAt = kraj ? new Date(kraj) : sada;
+    endsAt = new Date(startsAt.getTime() + plan.days * 864e5);
+  }
 
   const core = {
     user_id: input.userId,
@@ -87,9 +119,12 @@ export async function grantEntitlement(input: GrantInput): Promise<GrantResult> 
     ends_at: endsAt.toISOString(),
     source: input.source ?? 'paypal',
     paypal_id: input.paypalId,
-    note: input.amount
-      ? `${input.amount.toFixed(2)} ${input.currency ?? 'EUR'} · ${plan.name}`
-      : plan.name
+    note: [
+      input.amount ? `${input.amount.toFixed(2)} ${input.currency ?? 'EUR'}` : null,
+      nadogradjeno ? `nadogradnja ${nadogradjeno} → ${plan.code}` : plan.name
+    ]
+      .filter(Boolean)
+      .join(' · ')
   };
 
   const extended = {

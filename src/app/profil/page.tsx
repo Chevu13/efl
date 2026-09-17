@@ -15,6 +15,7 @@ import {
 } from '@/lib/data';
 import { paypalConfigured, paypalEnv } from '@/lib/paypal/client';
 import { PLANS, planByCode } from '@/lib/config';
+import { nadogradnja } from '@/lib/nadogradnja';
 import { dateShort, pct, untilLabel } from '@/lib/format';
 import { isPremium } from '@/lib/types';
 
@@ -215,6 +216,9 @@ export default async function Profil() {
         />
         <div className="mt-7">
           <PricingTable
+            nadogradnje={Object.fromEntries(
+              PLANS.map((p) => [p.code, nadogradnja(subs, p.code) ?? undefined])
+            )}
             tier={me.tier}
             loggedIn={!!me.userId}
             paypalReady={paypalConfigured()}

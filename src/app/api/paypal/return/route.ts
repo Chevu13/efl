@@ -51,7 +51,7 @@ export async function GET(req: Request) {
       return back('u-obradi', { order: orderId });
     }
 
-    const { userId, plan } = decodeRef(cap.ref);
+    const { userId, plan, nadogradnjaOd } = decodeRef(cap.ref);
     if (!userId || !plan) {
       console.error('[paypal/return] uplata bez custom_id', orderId);
       return back('bez-naloga', { order: orderId });
@@ -63,7 +63,8 @@ export async function GET(req: Request) {
       paypalId: cap.id,
       amount: cap.amount,
       currency: cap.currency,
-      orderId: order.id
+      orderId: order.id,
+      nadogradnjaOd
     });
 
     if (!granted.ok) {

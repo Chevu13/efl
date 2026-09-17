@@ -132,16 +132,23 @@ export type PayPalOrder = {
  * Webhook i povratna stranica citaju isti zapis, pa se pravo dodeljuje
  * identicno bez obzira na to sta stigne prvo.
  */
-export const encodeRef = (userId: string, plan: PlanCode) => `${userId}|${plan}`;
+export const encodeRef = (userId: string, plan: PlanCode, nadogradnjaOd?: string) =>
+  nadogradnjaOd ? `${userId}|${plan}|${nadogradnjaOd}` : `${userId}|${plan}`;
 
 export function decodeRef(ref: string | undefined | null): {
   userId: string | null;
   plan: PlanCode | null;
+  /** Id pretplate koja se nadogradjuje; prazno kod obicne kupovine. */
+  nadogradnjaOd: string | null;
 } {
-  if (!ref) return { userId: null, plan: null };
-  const [userId, plan] = ref.split('|');
+  if (!ref) return { userId: null, plan: null, nadogradnjaOd: null };
+  const [userId, plan, nadogradnjaOd] = ref.split('|');
   const known = PLANS.find((p) => p.code === plan);
-  return { userId: userId || null, plan: known ? known.code : null };
+  return {
+    userId: userId || null,
+    plan: known ? known.code : null,
+    nadogradnjaOd: nadogradnjaOd || null
+  };
 }
 
 export async function createOrder(args: {
@@ -150,8 +157,13 @@ export async function createOrder(args: {
   returnUrl: string;
   cancelUrl: string;
   requestId?: string;
+  /** Nadogradnja: naplacuje se razlika i ide oznaka osnove u custom_id. */
+  nadogradnja?: { osnovaId: string; osnovaNaziv: string; iznosCents: number; vaziDo: string };
 }): Promise<PayPalOrder> {
-  const { plan, userId, returnUrl, cancelUrl, requestId } = args;
+  const { plan, userId, returnUrl, cancelUrl, requestId, nadogradnja } = args;
+  const vaziDo = nadogradnja
+    ? new Date(nadogradnja.vaziDo).toLocaleDateString('sr-RS', { timeZone: 'Europe/Belgrade' })
+    : null;
 
   return call<PayPalOrder>('/v2/checkout/orders', {
     method: 'POST',
@@ -163,10 +175,12 @@ export async function createOrder(args: {
           /* Iznos dolazi iskljucivo sa servera, iz kataloga paketa. */
           amount: {
             currency_code: SITE.currency,
-            value: priceValue(plan.priceCents)
+            value: priceValue(nadogradnja?.iznosCents ?? plan.priceCents)
           },
-          description: `${SITE.name} ${plan.name} — ${plan.days} dana pristupa`,
-          custom_id: encodeRef(userId, plan.code),
+          description: nadogradnja
+            ? `${SITE.name} nadogradnja ${nadogradnja.osnovaNaziv} → ${plan.name}, vazi do ${vaziDo}`
+            : `${SITE.name} ${plan.name} — ${plan.days} dana pristupa`,
+          custom_id: encodeRef(userId, plan.code, nadogradnja?.osnovaId),
           invoice_id: `EFL-${plan.code}-${userId.slice(0, 8)}-${Date.now().toString(36)}`
         }
       ],

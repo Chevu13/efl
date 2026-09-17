@@ -1,6 +1,8 @@
 import CheckoutButton from './CheckoutButton';
 import { Chip } from '../ui/primitives';
-import { PLANS, priceLabel } from '@/lib/config';
+import { PLANS, priceLabel, type PlanCode } from '@/lib/config';
+import { dateShort } from '@/lib/format';
+import type { Nadogradnja } from '@/lib/nadogradnja';
 import { TIER_RANK, type Tier } from '@/lib/types';
 
 const FREE_FEATURES = [
@@ -20,11 +22,14 @@ const FREE_FEATURES = [
 export default function PricingTable({
   tier,
   loggedIn,
-  paypalReady
+  paypalReady,
+  nadogradnje = {}
 }: {
   tier: Tier;
   loggedIn: boolean;
   paypalReady: boolean;
+  /** Doplata po paketu, izracunata na serveru istom funkcijom kao naplata. */
+  nadogradnje?: Partial<Record<PlanCode, Nadogradnja>>;
 }) {
   return (
     <div>
@@ -54,6 +59,7 @@ export default function PricingTable({
         {PLANS.map((plan) => {
           const active = plan.tier === tier;
           const owned = TIER_RANK[tier] >= TIER_RANK[plan.tier];
+          const nad = owned ? undefined : nadogradnje[plan.code];
 
           return (
             <article
@@ -82,12 +88,27 @@ export default function PricingTable({
                   <span className="chip">{plan.code}</span>
                 </div>
 
-                <div className="mt-4 flex items-end gap-1.5">
-                  <span className="stat text-[44px] leading-none">
-                    {priceLabel(plan.priceCents)}
-                  </span>
-                  <span className="pb-1 text-[12px] text-ink-3">/ {plan.days} dana</span>
-                </div>
+                {nad ? (
+                  <div className="mt-4">
+                    <div className="flex items-end gap-1.5">
+                      <span className="stat text-[44px] leading-none text-brand">
+                        {priceLabel(nad.iznosCents)}
+                      </span>
+                      <span className="pb-1 text-[12px] text-ink-3">doplata</span>
+                    </div>
+                    <p className="mt-1.5 text-[12px] text-ink-3">
+                      <s className="text-ink-4">{priceLabel(plan.priceCents)}</s> · prelazis odmah,
+                      vazi do <b className="text-ink-2">{dateShort(nad.vaziDo)}</b>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="mt-4 flex items-end gap-1.5">
+                    <span className="stat text-[44px] leading-none">
+                      {priceLabel(plan.priceCents)}
+                    </span>
+                    <span className="pb-1 text-[12px] text-ink-3">/ {plan.days} dana</span>
+                  </div>
+                )}
 
                 <p className="mt-3 border-b border-line pb-4 text-small text-ink-3">{plan.pitch}</p>
 
@@ -110,7 +131,7 @@ export default function PricingTable({
                     <CheckoutButton
                       plan={plan.code}
                       loggedIn={loggedIn}
-                      label={`Uzmi ${plan.name}`}
+                      label={nad ? `Nadogradi na ${plan.name}` : `Uzmi ${plan.name}`}
                       variant={plan.featured ? 'primary' : 'ghost'}
                     />
                   ) : (
@@ -128,7 +149,7 @@ export default function PricingTable({
 
       <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-4">
         Placanje preko PayPal-a · jedna uplata otkljucava paket na {PLANS[0].days} dana ·
-        bez automatske obnove
+        bez automatske obnove · nadogradnja: placas samo razliku
       </p>
     </div>
   );
