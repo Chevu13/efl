@@ -60,7 +60,8 @@ export const PLANS: Plan[] = [
     code: 'PLUS',
     tier: 'PLUS',
     name: 'Plus',
-    priceCents: 900,
+    /* ponytail: privremeno 2 EUR radi probe naplate — vratiti na 900. */
+    priceCents: 200,
     days: 30,
     pitch: 'Po jedan izbor iz svakog cenovnog ranga.',
     features: [
