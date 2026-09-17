@@ -5,6 +5,7 @@ import { Alert } from '@/components/ui/primitives';
 import { LinkButton } from '@/components/ui/Button';
 import { getMyTier } from '@/lib/data';
 import { planByCode } from '@/lib/config';
+import { TIER_RANK, type Tier } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -72,7 +73,14 @@ export default async function Uspeh({
   /* Stvarno stanje — iz baze, ne iz adrese. */
   const me = await getMyTier();
   const plan = planByCode(me.tier);
-  const active = me.tier !== 'FREE';
+  /* Aktivan znaci: nalog ima bar onaj paket koji je kupljen. Samo „nije
+     FREE" je prijavljivalo uspeh i kad je Plus korisnik kupio Pro, a Pro
+     se nije ukljucio. */
+  const kupljen = searchParams.paket as Tier | undefined;
+  const active =
+    kupljen && kupljen in TIER_RANK
+      ? TIER_RANK[me.tier] >= TIER_RANK[kupljen]
+      : me.tier !== 'FREE';
 
   /* Adresa moze da tvrdi sta hoce; poruka prati ono sto stvarno pise u
      bazi. Zato otvaranje ove adrese rukom nikome nista ne otkljucava i,

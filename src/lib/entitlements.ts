@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import { planByCode, type PlanCode } from './config';
-import type { Tier } from './types';
+import { TIER_RANK, type Tier } from './types';
 
 /**
  * Dodela prava posle uspesne uplate.
@@ -60,17 +60,25 @@ export async function grantEntitlement(input: GrantInput): Promise<GrantResult> 
     };
   }
 
-  /* 2) Produzenje se nadovezuje na postojeci period, ne skracuje ga. */
-  const { data: active } = await sb
+  /* 2) Kada novi paket pocinje.
+        Nadovezuje se samo na aktivan paket ISTOG ili JACEG nivoa — to je
+        produzenje, i ne sme da pojede dane koji su vec placeni.
+        Nadogradnja (Plus -> Pro) pocinje odmah. Ranije se svaka kupovina
+        stavljala u red iza poslednjeg aktivnog paketa, pa je kupac platio
+        Pro i dobio ga tek kad mu istekne Plus. Preostali dani slabijeg
+        paketa i dalje teku, samo ih jaci paket prekriva. */
+  const { data: aktivni } = await sb
     .from('subscriptions')
-    .select('ends_at')
+    .select('tier, ends_at')
     .eq('user_id', input.userId)
-    .gt('ends_at', new Date().toISOString())
-    .order('ends_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .gt('ends_at', new Date().toISOString());
 
-  const startsAt = active?.ends_at ? new Date(active.ends_at as string) : new Date();
+  const kraj = (aktivni ?? [])
+    .filter((r) => TIER_RANK[r.tier as Tier] >= TIER_RANK[plan.tier])
+    .map((r) => new Date(r.ends_at as string).getTime())
+    .sort((a, b) => b - a)[0];
+
+  const startsAt = kraj ? new Date(kraj) : new Date();
   const endsAt = new Date(startsAt.getTime() + plan.days * 864e5);
 
   const core = {
