@@ -130,6 +130,18 @@ export default function Nav({
               </span>
             )}
 
+            {tier !== 'ULTRA' && (
+              <Link
+                href="/paketi"
+                aria-current={isActive(path, '/paketi') ? 'page' : undefined}
+                className={`hidden text-[13.5px] font-semibold transition-colors duration-fast md:block ${
+                  isActive(path, '/paketi') ? 'text-brand' : 'text-ink-3 hover:text-ink'
+                }`}
+              >
+                Paketi
+              </Link>
+            )}
+
             {email ? (
               <>
                 {premium ? (
@@ -222,6 +234,21 @@ export default function Nav({
                   );
                 })}
               </ul>
+
+              <Link
+                href="/paketi"
+                className="mt-3 flex min-h-[52px] items-center justify-between gap-4 border-b border-line py-3"
+              >
+                <span>
+                  <span className="block font-display text-[16px] font-extrabold uppercase tracking-tight">
+                    Paketi i cene
+                  </span>
+                  <span className="mt-0.5 block text-[12.5px] text-ink-3">
+                    Šta dobijaš u Plus, Pro i Ultra paketu
+                  </span>
+                </span>
+                <ChevronIcon />
+              </Link>
 
               <p className="label py-3 pt-6">Nalog</p>
               {email ? (

@@ -32,6 +32,26 @@ export const SITE_URL = (
   'http://localhost:3000'
 ).replace(/\/$/, '');
 
+/**
+ * Objašnjenja metrika — isti tekst u tabeli, na kartici i na naslovnoj.
+ *
+ * Svaka rečenica mora da odgovara onome što `scripts/uvoz-cena.mjs`
+ * stvarno računa. Tezina meca se izvodi iz procene ishoda utakmice, ne iz
+ * odbrane protivnika po poziciji — zato tako i piše.
+ */
+export const METRIKE = {
+  cena: 'Cena igrača u kreditima u zvaničnoj igri za ovo kolo.',
+  projekcija: 'Očekivani fantasy poeni u ovom kolu.',
+  razlika:
+    'Koliko projektovanih fantasy poena igrač donosi iznad svoje cene. Računa se kao projekcija minus cena.',
+  vrednost:
+    'Koliko je igrač isplativ u odnosu na cenu, na skali 0–10. 5 = tačno onoliko koliko se za tu cenu očekuje; više je bolje.',
+  protivnik:
+    'Protivnik i koliko je meč povoljan, 1–10. Više znači lakši meč. Izvodi se iz procene ishoda utakmice.',
+  prosek: 'Prosečni fantasy poeni po utakmici u prošloj sezoni.',
+  vlasnistvo: 'Procenat menadžera u zvaničnoj igri koji već imaju igrača u timu.'
+} as const;
+
 /** Puna adresa za canonical i sitemap. */
 export const absUrl = (path = '/') => `${SITE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 
@@ -83,8 +103,7 @@ export const PLANS: Plan[] = [
       'Sve iz Plus paketa',
       'Bek, krilo i centar — po tri izbora, skup, srednji i jeftin',
       'Detaljno obrazloženje za svaki od devet izbora',
-      'Forma poslednjih 5 kola i minutaža',
-      'Težina protivnika i vlasništvo po igraču'
+      'Vlasništvo, prosek i očekivana minutaža za sve igrače'
     ]
   },
   {
@@ -97,9 +116,9 @@ export const PLANS: Plan[] = [
     features: [
       'Sve iz Pro paketa',
       'Cela baza igrača sa projekcijom za svakog',
-      'Optimizator sam pravi najboljе 4 izmene po kreditu',
+      'Optimizator sam pravi najbolje 4 izmene po kreditu',
       'Svaka izmena sa obrazloženjem i računom budžeta',
-      'Prioritet za nova kola'
+      'Sortiranje cele lige po razlici i vrednosti'
     ]
   }
 ];

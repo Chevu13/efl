@@ -252,29 +252,6 @@ export function Meter({
   );
 }
 
-/**
- * Objasnjenje uz skracenicu. Radi na hover i na fokus tastaturom,
- * i uvek ostaje citljivo citacu ekrana preko naslova.
- */
-export function Hint({ children, text }: { children: ReactNode; text: string }) {
-  return (
-    <span className="group/hint relative inline-flex items-center">
-      <span
-        tabIndex={0}
-        role="note"
-        aria-label={text}
-        className="cursor-help border-b border-dotted border-ink-4 focus:outline-none"
-      >
-        {children}
-      </span>
-      <span
-        className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-40 w-max max-w-[220px]
-                   -translate-x-1/2 rounded-sm border border-line-2 bg-raise px-2.5 py-1.5 text-[11.5px]
-                   leading-snug text-ink-2 opacity-0 shadow-pop transition-opacity duration-fast
-                   group-hover/hint:opacity-100 group-focus-within/hint:opacity-100"
-      >
-        {text}
-      </span>
-    </span>
-  );
-}
+/* Objasnjenje uz metriku zivi u sopstvenom fajlu jer mora da radi i na
+   dodir, a za to treba stanje na klijentu. */
+export { Hint } from './Hint';

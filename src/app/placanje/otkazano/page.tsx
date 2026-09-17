@@ -34,7 +34,7 @@ export default function Otkazano({ searchParams }: { searchParams: { plan?: stri
         </p>
 
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <LinkButton href="/profil#paketi">Nazad na pakete</LinkButton>
+          <LinkButton href="/paketi">Nazad na pakete</LinkButton>
           <LinkButton href="/igraci" variant="ghost">
             Nastavi besplatno
           </LinkButton>

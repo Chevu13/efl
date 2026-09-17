@@ -28,6 +28,9 @@ export default function FixtureRow({
   pickDisabled?: boolean;
 }) {
   const t = dayLabel(f.tip_off);
+  /* Prilika bez broja nista ne govori: prikazuju se samo igraci cija je
+     projekcija vidljiva nalogu (vidi trimForTier). */
+  const prilike = topPlayers.filter((p) => p.projected != null);
   const edge = f.home_edge;
   const played = f.home_score != null && f.away_score != null;
 
@@ -81,11 +84,11 @@ export default function FixtureRow({
         </div>
 
         {/* fantasy prilike */}
-        {topPlayers.length > 0 && (
+        {prilike.length > 0 && (
           <div className="flex items-center gap-2 lg:justify-end">
             <span className="label hidden xl:inline">Prilika</span>
             <div className="flex gap-1.5">
-              {topPlayers.slice(0, 3).map((p) => (
+              {prilike.slice(0, 3).map((p) => (
                 <span
                   key={p.id}
                   title={`${p.short_name} · projekcija ${num(p.projected)} FP`}

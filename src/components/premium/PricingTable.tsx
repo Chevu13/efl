@@ -6,10 +6,10 @@ import type { Nadogradnja } from '@/lib/nadogradnja';
 import { TIER_RANK, type Tier } from '@/lib/types';
 
 const FREE_FEATURES = [
-  'Jedan izbor kola sa obrazlozenjem',
-  'Raspored i tezina protivnika',
+  'Jedan izbor kola sa obrazloženjem',
+  'Raspored i procena svakog meča',
   'Izazov kola i sezonska lista',
-  'Osnovni pregled baze igraca'
+  'Cene igrača sa početka liste'
 ];
 
 /**
@@ -78,7 +78,7 @@ export default function PricingTable({
                                 active ? 'bg-brand text-black' : 'bg-brand/15 text-brand-400'
                               }`}
                 >
-                  {active ? 'Tvoj aktivan paket' : 'Najcesci izbor'}
+                  {active ? 'Tvoj aktivan paket' : 'Najčešći izbor'}
                 </div>
               )}
 
@@ -97,8 +97,8 @@ export default function PricingTable({
                       <span className="pb-1 text-[12px] text-ink-3">doplata</span>
                     </div>
                     <p className="mt-1.5 text-[12px] text-ink-3">
-                      <s className="text-ink-4">{priceLabel(plan.priceCents)}</s> · prelazis odmah,
-                      vazi do <b className="text-ink-2">{dateShort(nad.vaziDo)}</b>
+                      <s className="text-ink-4">{priceLabel(plan.priceCents)}</s> · prelaziš odmah,
+                      važi do <b className="text-ink-2">{dateShort(nad.vaziDo)}</b>
                     </p>
                   </div>
                 ) : (
@@ -125,7 +125,7 @@ export default function PricingTable({
                   {owned ? (
                     <div className="flex h-11 items-center justify-center rounded-sm border border-line
                                     bg-elev text-[13px] font-semibold text-ink-3">
-                      {active ? 'Vec je aktivan' : 'Ukljuceno u tvoj paket'}
+                      {active ? 'Već je aktivan' : 'Uključeno u tvoj paket'}
                     </div>
                   ) : paypalReady ? (
                     <CheckoutButton
@@ -136,7 +136,7 @@ export default function PricingTable({
                     />
                   ) : (
                     <div className="rounded-sm border border-line bg-elev px-3 py-3 text-center text-[12px] text-ink-3">
-                      Placanje jos nije ukljuceno. Paket se za sada otkljucava
+                      Plaćanje još nije uključeno. Paket se za sada otključava
                       pristupnim kodom.
                     </div>
                   )}
@@ -148,8 +148,8 @@ export default function PricingTable({
       </div>
 
       <p className="mt-4 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-4">
-        Placanje preko PayPal-a · jedna uplata otkljucava paket na {PLANS[0].days} dana ·
-        bez automatske obnove · nadogradnja: placas samo razliku
+        Plaćanje preko PayPal-a · jedna uplata otključava paket na {PLANS[0].days} dana ·
+        bez automatske obnove · nadogradnja: plaćaš samo razliku
       </p>
     </div>
   );

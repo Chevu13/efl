@@ -1,38 +1,123 @@
 import Link from 'next/link';
 import { PlayerCutout } from '@/components/PlayerPhoto';
-import PlayerIdentity from '@/components/player/PlayerIdentity';
+import PlayerCard from '@/components/PlayerCard';
 import MatchupPill from '@/components/player/MatchupPill';
 import FixtureRow from '@/components/fixtures/FixtureRow';
+import IzazovNagrade from '@/components/game/IzazovNagrade';
+import PricingTable from '@/components/premium/PricingTable';
 import CourtBackdrop from '@/components/ui/CourtBackdrop';
-import { Chip, Meter, RowDivider, SectionHead } from '@/components/ui/primitives';
-import { Delta, FormBars } from '@/components/ui/Stat';
+import { Chip, Hint, SectionHead } from '@/components/ui/primitives';
 import { LinkButton } from '@/components/ui/Button';
-import { getCurrentRound, getFixtures, getMyTier, getPricedPlayers, getTeams, trimForTier } from '@/lib/data';
-import { edge, mecevi, num, signed, teamName, untilLabel, valueClass } from '@/lib/format';
-import { PLANS, priceLabel } from '@/lib/config';
-import { isPremium } from '@/lib/types';
+import {
+  getCoaches,
+  getCurrentRound,
+  getFixtures,
+  getMySubscriptions,
+  getMyTier,
+  getPricedPlayers,
+  getTeams,
+  trimForTier,
+  vidiProjekciju
+} from '@/lib/data';
+import { edge, num, signed, teamName, untilLabel, valueClass } from '@/lib/format';
+import { LINEUP, METRIKE, PLANS, priceLabel } from '@/lib/config';
+import { autoBuild } from '@/lib/lineup';
+import { optimize } from '@/lib/optimizer';
+import { nadogradnja } from '@/lib/nadogradnja';
+import { paypalConfigured } from '@/lib/paypal/client';
+import { TIER_RANK, type Coach, type PricedPlayer, type Tier } from '@/lib/types';
 
 export const revalidate = 60;
 
+/**
+ * Pregled optimizatora na stvarnim podacima kola.
+ *
+ * Polazni tim nije izmišljen: sastavljen je od igrača koje najviše
+ * menadžera ima u zvaničnoj igri, uz poštovanje kvota i budžeta. Onda ga
+ * optimizator popravlja pravim projekcijama. Na stranicu idu samo zbirni
+ * brojevi — nijedno ime ni projekcija pojedinačnog igrača.
+ */
+function pregledOptimizatora(igraci: PricedPlayer[], treneri: Coach[]) {
+  if (!igraci.some((p) => (p.ownership ?? 0) > 0)) return null;
+  const popularni = autoBuild(
+    igraci.map((p) => ({ ...p, projected: p.ownership ?? 0 })),
+    treneri
+  );
+  const r = optimize(popularni, igraci, treneri, { maxSwaps: 4 });
+  if (!(r.currentTotal > 0)) return null;
+  return {
+    pre: r.currentTotal,
+    posle: r.optimizedTotal,
+    dobitak: r.improvement,
+    zamena: r.swaps.length
+  };
+}
+
+/* Stvarni faktori projekcije — provereno u scripts/uvoz-cena.mjs.
+   Težine se namerno ne objavljuju. */
+const FAKTORI: [string, string][] = [
+  [
+    'Fantasy učinak',
+    'Koliko fantasy poena igrač donosi po odigranom minutu, iz prošle sezone Evrolige.'
+  ],
+  [
+    'Minutaža',
+    'Očekivani minuti, prilagođeni promenama u rotaciji tima — čije minute neko preuzima.'
+  ],
+  [
+    'Cena u zvaničnoj igri',
+    'Nosi ono što istorija ne vidi, kao nove transfere i promenu uloge. Igrači bez istorije u Evroligi procenjuju se iz cene.'
+  ],
+  [
+    'Procena meča',
+    'Šansa za pobedu u konkretnoj utakmici. Utiče umereno — protivnik ne menja projekciju iz korena.'
+  ],
+  ['Domaći teren', 'Mala, ali stvarna prednost igranja kod kuće.'],
+  ['Dostupnost', 'Igrač označen kao povređen u zvaničnoj igri dobija projekciju 0.']
+];
+
 export default async function Home() {
   const [round, teams, me] = await Promise.all([getCurrentRound(), getTeams(), getMyTier()]);
-  const [sviIgraci, fixtures] = round
-    ? await Promise.all([getPricedPlayers(round.id), getFixtures(round.id)])
-    : [[], []];
-  /* Naslovna je javna — sve ide kroz isto pravilo vidljivosti kao tabela. */
-  const players = trimForTier(sviIgraci, me.tier);
+  const [sviIgraci, fixtures, treneri] = round
+    ? await Promise.all([getPricedPlayers(round.id), getFixtures(round.id), getCoaches(round.id)])
+    : [[], [], []];
 
-  /* Na naslovnoj je besplatan izbor: skripta ga bira kao igraca sa najvecom
-     razlikom izmedju projekcije i cene u celom kolu, pa je to i dalje
-     „najveca razlika" — ali bez otkrivanja izbora iz placenih paketa. */
-  const free = players.find((p) => p.tier_pick === 'FREE') ?? players[0];
-  const hero = free;
-  /* Rang lista: samo igraci cija je projekcija vidljiva ovom nalogu. */
+  /* Naslovna je javna — sve što ide u pregledač prolazi kroz isto pravilo
+     vidljivosti kao tabela igrača. `sviIgraci` ostaje samo na serveru. */
+  const players = trimForTier(sviIgraci, me.tier);
+  const hero = players.find((p) => p.tier_pick === 'FREE') ?? players[0];
+  const ultra = me.tier === 'ULTRA';
+
+  /* Top 3: igrači čija je projekcija vidljiva ovom nalogu, po razlici. Ako
+     ih je manje od tri, ostatak su zaključane kartice izbora iz jačeg
+     paketa — one se crtaju na serveru i otkrivaju samo poziciju, tim i
+     protivnika. */
   const top = players
     .filter((p) => p.projected != null)
     .sort((a, b) => (edge(b) ?? -99) - (edge(a) ?? -99))
-    .slice(0, 6);
-  const premium = isPremium(me.tier);
+    .slice(0, 3);
+  const zakljucaniIzbori = sviIgraci
+    .filter((p) => p.tier_pick && !vidiProjekciju(me.tier, p))
+    .sort(
+      (a, b) => TIER_RANK[a.tier_pick as Tier] - TIER_RANK[b.tier_pick as Tier]
+    );
+  const teaseri = zakljucaniIzbori.slice(0, Math.max(0, 3 - top.length));
+  const josIzbora = zakljucaniIzbori.length - teaseri.length;
+
+  /* Dva najneizvesnija meča — procena najbliža 50:50. */
+  const neodigrani = fixtures.filter((f) => f.home_score == null);
+  const mecevi = [...(neodigrani.length ? neodigrani : fixtures)]
+    .sort(
+      (a, b) =>
+        Math.abs((a.home_edge ?? 50) - 50) - Math.abs((b.home_edge ?? 50) - 50) ||
+        (a.tip_off ?? '').localeCompare(b.tip_off ?? '')
+    )
+    .slice(0, 2);
+
+  const optimizator = round ? pregledOptimizatora(sviIgraci, treneri) : null;
+  const najjeftiniji = Math.min(...PLANS.map((p) => p.priceCents));
+  /* Doplata za nadogradnju se prikazuje i na naslovnoj — isti racun kao na /paketi. */
+  const pretplate = me.userId && !ultra ? await getMySubscriptions() : [];
 
   return (
     <>
@@ -41,39 +126,38 @@ export default async function Home() {
         <CourtBackdrop variant="arc" opacity={0.09} />
         <div className="datagrid pointer-events-none absolute inset-0 opacity-70" aria-hidden />
 
-        <div className="page relative grid gap-10 py-14 lg:grid-cols-[1fr_400px] lg:items-center lg:py-20">
+        <div className="page relative grid gap-10 py-10 sm:py-14 lg:grid-cols-[1fr_400px] lg:items-center lg:gap-14 lg:py-20">
           <div className="max-w-2xl animate-rise">
             <p className="eyebrow">
               EuroLeague Fantasy{round ? ` · ${round.number}. kolo` : ''}
               {round?.deadline && untilLabel(round.deadline) !== 'zakljucano' && (
-                <span className="text-ink-4"> · jos {untilLabel(round.deadline)}</span>
+                <span className="text-ink-4"> · još {untilLabel(round.deadline)}</span>
               )}
             </p>
 
             <h1 className="mt-5 text-[clamp(40px,8vw,80px)] uppercase leading-[0.92]">
-              Prestani da nagadjas.
-              <span className="mt-1 block text-brand">Pocni da racunas.</span>
+              Prestani da nagađaš.
+              <span className="mt-1 block text-brand">Počni da računaš.</span>
             </h1>
 
             <p className="mt-6 max-w-xl text-lead leading-relaxed text-ink-2">
-              Za svakog igraca poredimo cenu sa projektovanim brojem fantasy poena,
-              formom i tezinom protivnika — i pokazujemo ko se u ovom kolu stvarno
-              isplati.
+              Za svakog igrača poredimo cenu sa projektovanim fantasy poenima — iz učinka,
+              minutaže i procene meča — i pokazujemo ko se u ovom kolu stvarno isplati.
             </p>
 
-            <div className="mt-8 flex flex-wrap gap-3">
-              <LinkButton href="/igra" size="lg">
-                Sastavi postavu
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <LinkButton href="/igraci" size="lg">
+                Pogledaj izbore kola
               </LinkButton>
-              <LinkButton href="/baza" variant="ghost" size="lg">
-                Otvori bazu igraca
+              <LinkButton href="/igra" variant="ghost" size="lg">
+                Sastavi postavu
               </LinkButton>
             </div>
 
             <dl className="mt-10 flex flex-wrap gap-x-10 gap-y-4">
               {[
-                ['Igraca sa cenom', String(players.length)],
-                ['Meceva u kolu', String(fixtures.length)],
+                ['Igrača sa cenom', String(players.length)],
+                ['Mečeva u kolu', String(fixtures.length)],
                 ['Timova', String(Object.keys(teams).length)]
               ].map(([l, v]) => (
                 <div key={l}>
@@ -84,34 +168,45 @@ export default async function Home() {
             </dl>
           </div>
 
-          {/* zivi izlog proizvoda — ne ukrasna slika */}
+          {/* živi izlog proizvoda — ne ukrasna slika */}
           {hero && (
-            <aside className="relative animate-rise" style={{ animationDelay: '90ms' }}>
-              <div className="relative overflow-hidden rounded-md border border-line bg-surface">
+            <aside
+              className="group relative mx-auto w-full max-w-[420px] animate-rise lg:max-w-none"
+              style={{ animationDelay: '90ms' }}
+            >
+              <div
+                className="relative overflow-hidden rounded-md border border-line bg-surface shadow-pop
+                           transition-[transform,border-color] duration-fast ease-out
+                           hover:-translate-y-0.5 hover:border-line-2 motion-reduce:transform-none"
+              >
                 <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
                   <span className="label">Izbor kola</span>
                   <Chip tone="brand">Besplatno</Chip>
                 </div>
 
-                <div className="relative h-52 bg-gradient-to-b from-elev to-surface">
-                  <PlayerCutout player={hero} priority />
+                <div className="relative h-52 overflow-hidden bg-gradient-to-b from-elev to-surface sm:h-56">
+                  <div className="absolute inset-0 transition-transform duration-slow ease-out group-hover:scale-[1.03] motion-reduce:transform-none">
+                    <PlayerCutout player={hero} priority />
+                  </div>
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-surface to-transparent" />
                 </div>
 
-                <div className="relative px-4 pb-4">
+                <div className="relative px-4 pb-4 sm:px-5 sm:pb-5">
                   <div className="flex items-end justify-between gap-3">
                     <div className="min-w-0">
-                      <h2 className="truncate text-[24px] uppercase leading-none">
-                        {hero.short_name}
-                      </h2>
+                      <h2 className="truncate text-[24px] uppercase leading-none">{hero.short_name}</h2>
                       <p className="mt-1.5 text-[12px] text-ink-3">
                         {hero.position === 'G' ? 'Bek' : hero.position === 'F' ? 'Krilo' : 'Centar'} ·{' '}
                         {teamName(teams, hero.team_code)}
                       </p>
                     </div>
                     <div className="shrink-0 text-right">
-                      <div className="label">Preko cene</div>
-                      <div className="stat text-[34px] leading-none text-brand">
+                      <div className="label">
+                        <Hint text={METRIKE.razlika} align="end">
+                          Razlika
+                        </Hint>
+                      </div>
+                      <div className="stat mt-1 text-[38px] leading-none text-brand">
                         {signed(edge(hero))}
                       </div>
                     </div>
@@ -119,16 +214,26 @@ export default async function Home() {
 
                   <div className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-sm border border-line bg-line">
                     <div className="bg-sunken px-3 py-2.5">
-                      <div className="label">Cena</div>
-                      <div className="statmono mt-1 text-[15px]">{num(hero.price)}</div>
+                      <div className="label">
+                        <Hint text={METRIKE.cena} align="start">
+                          Cena
+                        </Hint>
+                      </div>
+                      <div className="statmono mt-1 text-[16px] text-ink">{num(hero.price)}</div>
                     </div>
                     <div className="bg-sunken px-3 py-2.5">
-                      <div className="label">Projekcija</div>
-                      <div className="statmono mt-1 text-[15px]">{num(hero.projected)}</div>
+                      <div className="label">
+                        <Hint text={METRIKE.projekcija}>Projekcija</Hint>
+                      </div>
+                      <div className="statmono mt-1 text-[16px] text-ink">{num(hero.projected)}</div>
                     </div>
                     <div className="bg-sunken px-3 py-2.5">
-                      <div className="label">Vrednost</div>
-                      <div className={`statmono mt-1 text-[15px] ${valueClass(hero.value_score)}`}>
+                      <div className="label">
+                        <Hint text={METRIKE.vrednost} align="end">
+                          Vrednost
+                        </Hint>
+                      </div>
+                      <div className={`statmono mt-1 text-[16px] ${valueClass(hero.value_score)}`}>
                         {num(hero.value_score)}
                       </div>
                     </div>
@@ -150,175 +255,178 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ================= VREDNOST KOLA ================= */}
-      {top.length > 0 && (
-        <section className="page py-14">
+      {/* ================= TOP 3 ================= */}
+      {top.length + teaseri.length > 0 && (
+        <section className="page py-14 sm:py-16">
           <SectionHead
-            eyebrow="Rang liste kola"
-            title="Ko vredi svoju cenu"
-            desc="Razlika je projekcija minus cena — koliko poena igrac donosi preko onoga sto kosta. Tu se dobijaju kola."
+            eyebrow={round ? `${round.number}. kolo` : 'Izbori kola'}
+            title="Najbolji izbori kola"
+            desc="Igrači koji donose najviše poena preko svoje cene. Uz svaki stoje cena, projekcija, razlika i protivnik."
             action={
               <LinkButton href="/igraci" variant="ghost" size="sm">
-                Svi izbori kola
+                Pogledaj sve igrače
               </LinkButton>
             }
           />
 
-          <div className="mt-7 overflow-hidden rounded-md border border-line">
-            <div className="hidden grid-cols-[40px_1fr_150px_90px_90px_120px] gap-4 border-b border-line bg-surface px-4 py-2.5 lg:grid">
-              {['#', 'Igrac', 'Protivnik', 'Cena', 'Proj.', 'Razlika'].map((h, i) => (
-                <span key={h} className={`label ${i > 2 ? 'text-right' : ''}`}>
-                  {h}
-                </span>
-              ))}
-            </div>
-
+          <div className="mt-7 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {top.map((p, i) => (
-              <div
+              <PlayerCard key={p.id} p={p} teams={teams} rank={i + 1} why={false} />
+            ))}
+            {teaseri.map((p, i) => (
+              <PlayerCard
                 key={p.id}
-                className="grid grid-cols-[28px_1fr_auto] items-center gap-4 border-b border-line
-                           px-4 py-3 transition-colors duration-fast last:border-0 hover:bg-elev
-                           lg:grid-cols-[40px_1fr_150px_90px_90px_120px]"
-              >
-                <span className="font-mono text-[12px] font-bold tabular-nums text-brand">
-                  {String(i + 1).padStart(2, '0')}
-                </span>
-
-                <PlayerIdentity player={p} teams={teams} size="sm" />
-
-                <div className="hidden lg:block">
-                  <MatchupPill
-                    opponent={p.opponent_code}
-                    isHome={p.is_home}
-                    score={p.matchup_score}
-                    teams={teams}
-                    size="sm"
-                    showWord={false}
-                  />
-                </div>
-
-                <span className="statmono hidden text-right text-[13.5px] text-ink-2 lg:block">
-                  {num(p.price)}
-                </span>
-                <span className="statmono hidden text-right text-[13.5px] lg:block">
-                  {num(p.projected)}
-                </span>
-
-                <div className="text-right">
-                  <span className={`statmono text-[15px] font-bold ${valueClass(p.value_score)}`}>
-                    {signed(edge(p))}
-                  </span>
-                  <Meter value={p.value_score} max={10} className="ml-auto mt-1.5 w-14 lg:w-full" />
-                </div>
-              </div>
+                p={p}
+                teams={teams}
+                rank={top.length + i + 1}
+                locked
+                need={p.tier_pick as Tier}
+              />
             ))}
           </div>
+
+          {josIzbora > 0 && (
+            <Link
+              href="/paketi"
+              className="group mt-4 flex items-center justify-between gap-4 rounded-md border border-dashed
+                         border-brand/40 bg-gradient-to-r from-brand/[.08] to-transparent px-5 py-4
+                         transition-colors duration-fast hover:border-brand/70"
+            >
+              <span>
+                <span className="block font-display text-[16px] font-extrabold uppercase tracking-tight">
+                  Još {josIzbora} premium preporuka ovog kola
+                </span>
+                <span className="mt-0.5 block text-[12.5px] text-ink-3">
+                  Po igrač iz svakog cenovnog ranga i po tri na svakoj poziciji.
+                </span>
+              </span>
+              <span className="shrink-0 font-semibold text-brand transition-transform duration-fast group-hover:translate-x-0.5">
+                Pogledaj pakete →
+              </span>
+            </Link>
+          )}
         </section>
       )}
 
-      {/* ================= ZASTO BAS ON ================= */}
-      {free?.why_sr && (
+      {/* ================= MEČEVI ================= */}
+      {mecevi.length > 0 && (
         <section className="border-y border-line bg-sunken">
-          <div className="page grid gap-8 py-14 md:grid-cols-[300px_1fr] md:items-center">
-            <div className="relative h-64 overflow-hidden rounded-md border border-line bg-gradient-to-b from-elev to-surface">
-              <PlayerCutout player={free} />
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-surface to-transparent px-4 pb-3 pt-10">
-                <p className="font-display text-[20px] font-extrabold uppercase leading-none">
-                  {free.short_name}
-                </p>
-                <p className="mt-1 text-[11.5px] text-ink-3">{teamName(teams, free.team_code)}</p>
-              </div>
+          <div className="page py-14 sm:py-16">
+            <SectionHead
+              eyebrow="Raspored"
+              title="Najneizvesniji mečevi"
+              desc="Utakmice u kojima je naša procena najbliža 50:50 — tu se najčešće odlučuje izazov kola."
+              action={
+                <LinkButton href="/raspored" variant="ghost" size="sm">
+                  Sve utakmice
+                </LinkButton>
+              }
+            />
+            <div className="mt-7 overflow-hidden rounded-md border border-line bg-surface">
+              {mecevi.map((f) => (
+                <FixtureRow
+                  key={f.id}
+                  f={f}
+                  teams={teams}
+                  topPlayers={players
+                    .filter(
+                      (p) =>
+                        p.projected != null &&
+                        (p.team_code === f.home_code || p.team_code === f.away_code)
+                    )
+                    .sort((a, b) => (b.projected ?? 0) - (a.projected ?? 0))}
+                />
+              ))}
             </div>
 
-            <div>
-              <p className="eyebrow">Analiza · besplatno svako kolo</p>
-              <h2 className="mt-4 text-[clamp(24px,4vw,36px)] uppercase leading-tight">
-                Zasto bas on ovog kola
-              </h2>
-              <p className="mt-4 max-w-prose text-lead leading-relaxed text-ink-2">{free.why_sr}</p>
-
-              <div className="mt-6 flex flex-wrap gap-6">
-                {[
-                  ['Cena', num(free.price), 'kredita'],
-                  ['Projekcija', num(free.projected), 'FP'],
-                  ['Vrednost', num(free.value_score), '/ 10'],
-                  ['Vlasnistvo', num(free.ownership ?? null, 0), '%']
-                ].map(([l, v, u]) => (
-                  <div key={l}>
-                    <div className="label">{l}</div>
-                    <div className="stat mt-1.5 text-[28px] leading-none">
-                      {v}
-                      <span className="ml-1 font-mono text-[10px] font-medium text-ink-3">{u}</span>
-                    </div>
-                  </div>
-                ))}
+            {/* izazov kola — nagrade stoje uz mečeve na koje se glasa */}
+            <div className="mt-6 rounded-md border border-line bg-surface p-5 sm:p-6">
+              <div className="flex flex-wrap items-end justify-between gap-4">
+                <div className="max-w-xl">
+                  <p className="eyebrow">Izazov kola · besplatno</p>
+                  <h3 className="mt-3 text-[clamp(20px,3vw,26px)] uppercase leading-tight">
+                    Pogodi kolo, osvoji paket
+                  </h3>
+                  <p className="mt-2 text-small text-ink-3">
+                    Tipuj pobednike mečeva i da li igrači prelaze svoju cenu. Bez uloga i bez
+                    plaćanja.
+                  </p>
+                </div>
+                <LinkButton href="/raspored" size="sm">
+                  Uđi u izazov
+                </LinkButton>
               </div>
-
-              <LinkButton href="/igraci" className="mt-7">
-                Vidi sve izbore kola
-              </LinkButton>
+              <div className="mt-5">
+                <IzazovNagrade />
+              </div>
             </div>
           </div>
         </section>
       )}
 
       {/* ================= OPTIMIZATOR ================= */}
-      <section className="page py-14">
+      <section className="page py-14 sm:py-16">
         <SectionHead
-          eyebrow="Premium alat"
+          eyebrow="Ultra alat"
           title="Optimizator postave"
-          desc="Ubaci svoju postavu i alat trazi zamene koje donose vise poena u okviru istog budzeta. Uz svaku preporuku stoji razlog — cena, forma, protivnik, minutaza."
+          desc={`Ubaci svoju postavu, a alat pronalazi do 4 zamene koje donose najviše poena u okviru ${LINEUP.budget} kredita — uz razlog za svaku.`}
         />
 
-        <div className="mt-7 grid gap-6 lg:grid-cols-[1fr_320px] lg:items-start">
+        <div className="mt-7 grid gap-4 lg:grid-cols-[1fr_320px] lg:items-stretch">
           <div className="relative overflow-hidden rounded-md border border-line bg-gradient-to-b from-surface to-sunken">
             <CourtBackdrop variant="arc" opacity={0.08} />
-            <div className="relative grid gap-6 p-6 sm:grid-cols-[1fr_auto_1fr_auto] sm:items-center sm:p-8">
-              <div>
-                <div className="label">Trenutna projekcija</div>
-                <div className="stat mt-2 text-[clamp(34px,6vw,52px)] leading-none text-ink-3">142.7</div>
-              </div>
-              <div className="hidden text-[22px] text-brand sm:block" aria-hidden>
-                →
-              </div>
-              <div>
-                <div className="label">Posle optimizacije</div>
-                <div className="stat mt-2 text-[clamp(34px,6vw,52px)] leading-none text-brand">161.4</div>
-              </div>
-              <div className="sm:border-l sm:border-line sm:pl-6">
-                <div className="label">Poboljsanje</div>
-                <div className="stat mt-2 text-[clamp(26px,4vw,36px)] leading-none text-brand">
-                  {signed(18.7)}
+            {optimizator ? (
+              <>
+                <div className="relative grid gap-6 p-6 sm:grid-cols-[1fr_auto_1fr_auto] sm:items-center sm:p-8">
+                  <div>
+                    <div className="label">Najpopularniji tim</div>
+                    <div className="stat mt-2 text-[clamp(34px,6vw,52px)] leading-none text-ink-3">
+                      {num(optimizator.pre)}
+                    </div>
+                  </div>
+                  <div className="hidden text-[22px] text-brand sm:block" aria-hidden>
+                    →
+                  </div>
+                  <div>
+                    <div className="label">
+                      Posle {optimizator.zamena}{' '}
+                      {optimizator.zamena >= 1 && optimizator.zamena <= 4 ? 'zamene' : 'zamena'}
+                    </div>
+                    <div className="stat mt-2 text-[clamp(34px,6vw,52px)] leading-none text-brand">
+                      {num(optimizator.posle)}
+                    </div>
+                  </div>
+                  <div className="sm:border-l sm:border-line sm:pl-6">
+                    <div className="label">Dobitak</div>
+                    <div className="stat mt-2 text-[clamp(26px,4vw,36px)] leading-none text-brand">
+                      {signed(optimizator.dobitak)}
+                      <span className="ml-1 font-mono text-[11px] font-medium text-ink-3">FP</span>
+                    </div>
+                  </div>
                 </div>
+                <p className="relative border-t border-line px-6 py-4 text-[12.5px] leading-relaxed text-ink-3 sm:px-8">
+                  Stvarni brojevi ovog kola: tim od igrača koje najviše menadžera ima u zvaničnoj
+                  igri, u okviru {LINEUP.budget} kredita, pa isti tim posle optimizatora. Tvoj
+                  rezultat zavisi od tvoje postave.
+                </p>
+              </>
+            ) : (
+              <div className="relative p-6 sm:p-8">
+                <p className="text-body text-ink-2">
+                  Pregled se računa čim budu unete cene i vlasništvo za tekuće kolo.
+                </p>
               </div>
-            </div>
-
-            <div className="relative border-t border-line px-6 py-4 sm:px-8">
-              <p className="text-[12.5px] text-ink-3">
-                Primer sa demo postavom. Tvoj rezultat zavisi od igraca koje si izabrao.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className="chip">
-                  <Delta value={6.4} unit="FP" /> zamena beka
-                </span>
-                <span className="chip">
-                  <Delta value={5.1} unit="FP" /> povoljniji protivnik
-                </span>
-                <span className="chip">
-                  <Delta value={-2.3} suffix="kr" /> oslobodjen budzet
-                </span>
-              </div>
-            </div>
+            )}
           </div>
 
-          <div className="panel p-5">
-            <h3 className="text-[17px] uppercase">Sta dobijas</h3>
-            <ul className="mt-4 space-y-3">
+          <div className="panel flex flex-col p-5">
+            <h3 className="text-[17px] uppercase">Šta dobijaš</h3>
+            <ul className="mt-4 flex-1 space-y-3">
               {[
-                'Zamene poredjane po dobitku poena',
+                'Zamene poređane po dobitku poena',
                 'Razlog za svaku zamenu, ne samo rezultat',
-                'Postovanje budzeta i pravila sastava',
-                'Racunanje na serveru — brojevi se ne mogu podesiti'
+                'Poštovanje budžeta i pravila sastava',
+                'Računanje na serveru — brojevi se ne mogu podesiti'
               ].map((f) => (
                 <li key={f} className="flex items-start gap-2.5 text-small text-ink-2">
                   <span className="mt-[7px] h-[3px] w-3 shrink-0 bg-brand" aria-hidden />
@@ -327,66 +435,101 @@ export default async function Home() {
               ))}
             </ul>
             <LinkButton href="/optimizator" className="mt-6" full>
-              {premium ? 'Otvori optimizator' : 'Probaj optimizator'}
+              Otvori optimizator
             </LinkButton>
-            {!premium && (
+            {!ultra && (
               <p className="mt-3 text-center text-[11.5px] text-ink-4">
-                Ukupno poboljsanje vidis besplatno · pojedinacne zamene od{' '}
-                {priceLabel(PLANS[0].priceCents)}
+                Pojedinačne zamene su deo Ultra paketa
               </p>
             )}
           </div>
         </div>
       </section>
 
-      {/* ================= MECEVI ================= */}
-      {fixtures.length > 0 && (
-        <section className="border-t border-line bg-sunken">
-          <div className="page py-14">
-            <RowDivider title={`${round?.number ?? ''}. kolo — mecevi`} meta={mecevi(fixtures.length)} />
-            <div className="mt-4 overflow-hidden rounded-md border border-line bg-surface">
-              {fixtures.slice(0, 4).map((f) => (
-                <FixtureRow
-                  key={f.id}
-                  f={f}
-                  teams={teams}
-                  topPlayers={players
-                    .filter((p) => p.team_code === f.home_code || p.team_code === f.away_code)
-                    .slice(0, 3)}
-                />
-              ))}
-            </div>
-            <div className="mt-5">
-              <LinkButton href="/raspored" variant="ghost" size="sm">
-                Ceo raspored kola
+      {/* ================= KAKO RAČUNAMO ================= */}
+      <section className="border-y border-line bg-sunken">
+        <div className="page grid gap-10 py-14 sm:py-16 lg:grid-cols-[minmax(0,380px)_1fr]">
+          <div>
+            <SectionHead
+              eyebrow="Metodologija"
+              title="Kako računamo projekcije?"
+              desc="Projekcija je procena iz stvarnih podataka, ne garancija. Faktore objavljujemo, tačne težine ne."
+            />
+            {round && (
+              <p className="mt-6 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-4">
+                {round.number}. kolo · {players.length} igrača sa cenom · {fixtures.length}{' '}
+                {fixtures.length === 1 ? 'meč' : 'mečeva'}
+              </p>
+            )}
+            <p className="mt-3 text-[12.5px] leading-relaxed text-ink-3">
+              Forma iz tekuće sezone još ne ulazi u projekciju.
+            </p>
+          </div>
+
+          <ul className="grid gap-px overflow-hidden rounded-md border border-line bg-line sm:grid-cols-2">
+            {FAKTORI.map(([naslov, opis], i) => (
+              <li key={naslov} className="bg-surface p-5">
+                <div className="flex items-baseline gap-3">
+                  <span className="font-mono text-[11px] font-bold tabular-nums text-brand">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <h3 className="text-[15px] uppercase leading-tight">{naslov}</h3>
+                </div>
+                <p className="mt-2 text-small leading-relaxed text-ink-3">{opis}</p>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* ================= PAKETI ================= */}
+      {!ultra && (
+        <section className="page py-14 sm:py-16">
+          <SectionHead
+            eyebrow="Paketi"
+            title="Izaberi paket"
+            desc={`Jedna uplata, 30 dana pristupa, bez automatske obnove. Paketi od ${priceLabel(najjeftiniji)}.`}
+            action={
+              <LinkButton href="/paketi" variant="ghost" size="sm">
+                Uporedi pakete
               </LinkButton>
-            </div>
+            }
+          />
+          <div className="mt-7">
+            <PricingTable
+              tier={me.tier}
+              loggedIn={!!me.userId}
+              paypalReady={paypalConfigured()}
+              nadogradnje={Object.fromEntries(
+                PLANS.map((p) => [p.code, nadogradnja(pretplate, p.code) ?? undefined])
+              )}
+            />
           </div>
         </section>
       )}
 
-      {/* ================= POZIV ================= */}
-      {!premium && (
-        <section className="page py-16">
-          <div className="relative overflow-hidden rounded-md border border-brand/40 bg-gradient-to-br from-brand/[.12] to-surface">
-            <div className="hatch pointer-events-none absolute inset-0 opacity-60" aria-hidden />
-            <div className="relative grid gap-8 p-7 md:grid-cols-[1fr_auto] md:items-center sm:p-10">
+      {/* ================= DALJE ================= */}
+      {round && (
+        <section className="page py-14 sm:py-16">
+          <div className="relative overflow-hidden rounded-md border border-line bg-surface">
+            <div className="hatch pointer-events-none absolute inset-0 opacity-40" aria-hidden />
+            <div className="relative grid gap-8 p-6 sm:p-10 md:grid-cols-[1fr_auto] md:items-center">
               <div className="max-w-xl">
                 <h2 className="text-[clamp(24px,4vw,34px)] uppercase leading-tight">
-                  Jedno kolo bez lose zamene vraca cenu paketa
+                  Kreni od kola koje je pred tobom
                 </h2>
-                <p className="mt-4 text-body leading-relaxed text-ink-2">
-                  Svi igraci kola sa cenom i projekcijom, forma i minutaza, tezina
-                  protivnika po igracu i optimizator koji objasni svaku preporuku.
+                <p className="mt-3 text-body leading-relaxed text-ink-2">
+                  Svi igrači sa cenom, ceo raspored sa procenama i optimizator za tvoju postavu.
                 </p>
               </div>
-              <div className="shrink-0">
-                <LinkButton href="/profil#paketi" size="lg">
-                  Pogledaj pakete
+              <div className="flex flex-col gap-2.5 sm:flex-row md:flex-col">
+                <LinkButton href="/igraci">Pogledaj sve igrače</LinkButton>
+                <LinkButton href="/raspored" variant="ghost">
+                  Sve utakmice
                 </LinkButton>
-                <p className="mt-2.5 text-center text-[11.5px] text-ink-3">
-                  Od {priceLabel(PLANS[0].priceCents)} · placanje preko PayPal-a
-                </p>
+                <LinkButton href="/optimizator" variant="ghost">
+                  Otvori optimizator
+                </LinkButton>
               </div>
             </div>
           </div>

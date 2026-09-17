@@ -8,18 +8,19 @@ import Segmented from '../ui/Segmented';
 import { EmptyState, Hint, Meter } from '../ui/primitives';
 import { Delta, FormBars } from '../ui/Stat';
 import { edge, num, signed, teamName, valueClass } from '@/lib/format';
+import { METRIKE } from '@/lib/config';
 import type { PricedPlayer, Team, Tier } from '@/lib/types';
 
 type SortKey = 'edge' | 'value_score' | 'projected' | 'price' | 'season_avg' | 'ownership' | 'matchup_score';
 
 const SORTS: { key: SortKey; label: string; hint: string }[] = [
-  { key: 'edge', label: 'Razlika', hint: 'Projekcija minus cena — koliko poena donosi preko onoga sto kosta.' },
-  { key: 'value_score', label: 'Vrednost', hint: 'Isto merenje, ali skinuto sa cene: 5 znaci tacno po ceni. Razlika favorizuje skupe igrace, ovo ne.' },
-  { key: 'projected', label: 'Projekcija', hint: 'Ocekivani fantasy poeni u ovom kolu.' },
-  { key: 'price', label: 'Cena', hint: 'Cena igraca u kreditima za ovo kolo.' },
-  { key: 'season_avg', label: 'Prosek', hint: 'Prosecni fantasy poeni po utakmici prosle sezone. Forma tekuce sezone se puni od 5. kola.' },
-  { key: 'matchup_score', label: 'Protivnik', hint: 'Tim protiv koga igra i koliko mu je mec povoljan, od 1 do 10. Racuna se iz forme protivnika, koliko poena prima na toj poziciji i da li se igra kod kuce. Vise znaci laksi mec.' },
-  { key: 'ownership', label: 'Vlasnistvo', hint: 'Procenat menadzera koji ga vec ima u timu.' }
+  { key: 'edge', label: 'Razlika', hint: METRIKE.razlika },
+  { key: 'value_score', label: 'Vrednost', hint: METRIKE.vrednost },
+  { key: 'projected', label: 'Projekcija', hint: METRIKE.projekcija },
+  { key: 'price', label: 'Cena', hint: METRIKE.cena },
+  { key: 'season_avg', label: 'Prosek', hint: METRIKE.prosek },
+  { key: 'matchup_score', label: 'Protivnik', hint: METRIKE.protivnik },
+  { key: 'ownership', label: 'Vlasništvo', hint: METRIKE.vlasnistvo }
 ];
 
 const POSITIONS = [
@@ -192,26 +193,26 @@ export default function PlayerTable({
                   <th scope="col">Igrac</th>
                   {showMatchup && (
                     <th scope="col" className="hidden lg:table-cell">
-                      <Hint text="Tim protiv koga igra i koliko mu je mec povoljan, od 1 do 10. Racuna se iz forme protivnika, koliko poena prima na toj poziciji i da li se igra kod kuce. Vise znaci laksi mec.">Protivnik</Hint>
+                      <Hint text={METRIKE.protivnik} place="bottom" align="center">Protivnik</Hint>
                     </th>
                   )}
                   <th scope="col" className="hidden text-right md:table-cell">
-                    <Hint text="Prosecni fantasy poeni po utakmici prosle sezone. Forma tekuce sezone se puni od 5. kola.">Prosek</Hint>
+                    <Hint text={METRIKE.prosek} place="bottom" align="end">Prosek</Hint>
                   </th>
                   <th scope="col" className="text-right">
-                    <Hint text="Cena igraca u kreditima za ovo kolo.">Cena</Hint>
+                    <Hint text={METRIKE.cena} place="bottom" align="end">Cena</Hint>
                   </th>
                   <th scope="col" className="text-right">
-                    <Hint text="Ocekivani fantasy poeni u ovom kolu.">Proj.</Hint>
+                    <Hint text={METRIKE.projekcija} place="bottom" align="end">Proj.</Hint>
                   </th>
                   <th scope="col" className="text-right">
-                    <Hint text="Projekcija minus cena — koliko poena donosi preko onoga sto kosta.">Razlika</Hint>
+                    <Hint text={METRIKE.razlika} place="bottom" align="end">Razlika</Hint>
                   </th>
                   <th scope="col" className="hidden text-right sm:table-cell">
-                    <Hint text="Isto merenje, ali skinuto sa cene: 5 znaci tacno po ceni. Razlika favorizuje skupe igrace, ovo ne.">Vred.</Hint>
+                    <Hint text={METRIKE.vrednost} place="bottom" align="end">Vred.</Hint>
                   </th>
                   <th scope="col" className="hidden text-right xl:table-cell">
-                    <Hint text="Procenat menadzera koji ga vec ima u timu.">Vlas.</Hint>
+                    <Hint text={METRIKE.vlasnistvo} place="bottom" align="end">Vlas.</Hint>
                   </th>
                 </tr>
               </thead>
@@ -285,7 +286,7 @@ export default function PlayerTable({
                 Jos <b className="statmono text-ink">{hidden}</b> igraca sa cenom, projekcijom i
                 ocenom vrednosti.
               </p>
-              <Link href="/profil#paketi" className="btn-primary btn-sm">
+              <Link href="/paketi" className="btn-primary btn-sm">
                 Otkljucaj {need ?? 'PRO'}
               </Link>
             </div>

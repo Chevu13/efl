@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import PlayerIdentity from './player/PlayerIdentity';
 import MatchupPill from './player/MatchupPill';
-import { Chip, Meter } from './ui/primitives';
+import { Chip, Hint, Meter } from './ui/primitives';
 import { Delta, FormBars } from './ui/Stat';
 import { edge, num, signed, valueClass, valueWord, valueBand, teamName } from '@/lib/format';
 import type { PricedPlayer, Team, Tier } from '@/lib/types';
+import { METRIKE } from '@/lib/config';
 
 /**
  * Izbor kola.
@@ -55,7 +56,11 @@ export default function PlayerCard({
         {/* glavni brojevi — projekcija nosi tezinu */}
         <div className="mt-5 flex items-end justify-between gap-4 border-b border-line pb-4">
           <div>
-            <div className="label">Projekcija</div>
+            <div className="label">
+              <Hint text={METRIKE.projekcija} align="start">
+                Projekcija
+              </Hint>
+            </div>
             <div className="stat mt-1 text-[42px] leading-none">
               {num(p.projected)}
               <span className="ml-1.5 font-mono text-[11px] font-medium text-ink-3">FP</span>
@@ -67,7 +72,11 @@ export default function PlayerCard({
               <div className="statmono mt-1 text-[16px]">{num(p.price)}</div>
             </div>
             <div>
-              <div className="label">Razlika</div>
+              <div className="label">
+                <Hint text={METRIKE.razlika} align="end">
+                  Razlika
+                </Hint>
+              </div>
               <div className={`statmono mt-1 text-[16px] ${valueClass(p.value_score)}`}>
                 {signed(edge(p))}
               </div>
@@ -102,7 +111,11 @@ export default function PlayerCard({
         {/* vrednost kao traka + rec, ne samo boja */}
         <div className="mt-4">
           <div className="mb-1.5 flex items-center justify-between">
-            <span className="label">Vrednost — plus od cene</span>
+            <span className="label">
+              <Hint text={METRIKE.vrednost} align="start" icon>
+                Vrednost
+              </Hint>
+            </span>
             <span className={`font-mono text-[11px] font-bold uppercase ${valueClass(p.value_score)}`}>
               {valueWord[band]}
             </span>
@@ -114,7 +127,10 @@ export default function PlayerCard({
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11.5px] text-ink-3">
             {p.ownership != null && (
               <span>
-                Vlasnistvo <b className="statmono text-ink-2">{num(p.ownership, 0)}%</b>
+                <Hint text={METRIKE.vlasnistvo} align="start">
+                  Vlasništvo
+                </Hint>{' '}
+                <b className="statmono text-ink-2">{num(p.ownership, 0)}%</b>
               </span>
             )}
             {p.price_trend != null && (
@@ -221,10 +237,7 @@ function LockedCard({
           Mec i tezina protivnika vide se u svakom paketu. {need} otkriva igraca,
           cenu, projekciju i obrazlozenje.
         </p>
-        <Link
-          href="/profil#paketi"
-          className="btn-primary btn-sm mt-3 w-full"
-        >
+        <Link href="/paketi" className="btn-primary btn-sm mt-3 w-full">
           Otkljucaj {need}
         </Link>
       </div>

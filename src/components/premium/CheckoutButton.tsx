@@ -33,7 +33,7 @@ export default function CheckoutButton({
 
   async function start() {
     if (!loggedIn) {
-      router.push(`/prijava?next=${encodeURIComponent('/profil#paketi')}`);
+      router.push(`/prijava?reg=1&next=${encodeURIComponent('/paketi')}`);
       return;
     }
 

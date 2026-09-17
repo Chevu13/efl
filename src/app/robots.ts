@@ -6,7 +6,7 @@ import { SITE_URL, absUrl } from '@/lib/config';
  *
  * Zabranjeno je sve iza naloga i sve sto je samo mehanika: API rute,
  * povratne stranice sa PayPal-a i potvrde iz mejla. Te adrese nose
- * jednokratne tokene u upitu i nemaju sta da trazе u pretrazi.
+ * jednokratne tokene u upitu i nemaju sta da traze u pretrazi.
  *
  * Dok sajt nije na svom domenu, indeksiranje se zabranjuje u celosti —
  * bolje nego da Google zapamti privremenu Vercel adresu kao original.

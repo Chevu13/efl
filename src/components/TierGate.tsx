@@ -66,7 +66,7 @@ export default function TierGate({
             {priceLabel(plan.priceCents)}
           </div>
           <div className="mt-1 text-[11.5px] text-ink-3">{plan.days} dana pristupa</div>
-          <Link href="/profil#paketi" className="btn-primary btn-md mt-5 w-full">
+          <Link href="/paketi" className="btn-primary btn-md mt-5 w-full">
             Otkljucaj {plan.name}
           </Link>
           <p className="mt-3 text-[11px] text-ink-4">Placanje preko PayPal-a</p>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import FixtureRow from '../fixtures/FixtureRow';
 import PlayerIdentity from '../player/PlayerIdentity';
 import Leaderboard from './Leaderboard';
+import IzazovNagrade from './IzazovNagrade';
 import { Button } from '../ui/Button';
 import { Alert, RowDivider } from '../ui/primitives';
 import { dayLabel, mecevi, num, untilLabel } from '@/lib/format';
@@ -154,8 +155,8 @@ export default function RoundSchedule({
             <div>
               <h2 className="text-[20px] uppercase">Izazov kola</h2>
               <p className="mt-1.5 max-w-md text-small text-ink-3">
-                Pogodi pobednike meceva i da li igraci prelaze granicu. Bez uloga —
-                devet od deset tacnih donosi PRO na sledece kolo.
+                Pogodi pobednike mečeva i da li igrači prelaze svoju cenu. Bez uloga — pobednik
+                kola dobija Pro, a pobednik meseca Ultra.
               </p>
             </div>
             <div className="text-right">
@@ -174,17 +175,15 @@ export default function RoundSchedule({
             />
           </div>
 
-          <div className="mt-4 flex flex-wrap gap-2">
-            <span className="chip">
-              <b className="text-brand">9/10</b> sledece kolo PRO
-            </span>
-            <span className="chip">
-              <b className="text-ink">#1</b> u mesecu — mesec dana PRO
-            </span>
-            {round.deadline && (
-              <span className="chip">Zakljucava se za {untilLabel(round.deadline)}</span>
-            )}
+          <div className="mt-4">
+            <IzazovNagrade compact />
           </div>
+
+          {round.deadline && (
+            <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.12em] text-ink-4">
+              Zaključava se za {untilLabel(round.deadline)}
+            </p>
+          )}
         </div>
       )}
 

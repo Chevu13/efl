@@ -1,40 +1,35 @@
 import Link from 'next/link';
 import Lockup from './brand/Lockup';
-import { PRIMARY } from './nav/links';
 import { SITE } from '@/lib/config';
 
+const LINKOVI = [
+  { href: '/o-nama', label: 'O nama' },
+  { href: '/uslovi', label: 'Uslovi korišćenja' },
+  { href: '/privatnost', label: 'Politika privatnosti' }
+];
+
 /**
- * Futer. Drzi identitet, mapu proizvoda i pravnu napomenu.
+ * Futer — namerno kratak: logo, nekoliko linkova i pravna napomena.
+ * Navigacija kroz proizvod je u zaglavlju, cene na naslovnoj.
  *
- * `demo` oznaka se pojavljuje samo kad baza nije popunjena — posteno je
- * reci da su brojevi na ekranu primer, a ne stvarna analiza kola.
+ * `demo` oznaka se pojavljuje samo kad baza nije popunjena — pošteno je
+ * reći da su brojevi na ekranu primer, a ne stvarna analiza kola.
  */
 export default function SiteFooter({ demo }: { demo: boolean }) {
   return (
     <footer className="border-t border-line bg-sunken">
-      <div className="page grid gap-10 py-12 md:grid-cols-[1fr_auto]">
-        <div>
-          <Lockup variant="wide" size={44} />
-          <p className="mt-5 max-w-sm text-small leading-relaxed text-ink-3">
-            {SITE.tagline} Analitika za EuroLeague Fantasy — cena, projekcija,
-            tezina protivnika i vrednost, za svako kolo.
-          </p>
+      <div className="page flex flex-col gap-5 py-7 md:flex-row md:items-center md:justify-between">
+        <Link
+          href="/"
+          aria-label={`${SITE.name} — početna`}
+          className="inline-block w-fit transition-opacity duration-fast hover:opacity-85"
+        >
+          <Lockup size={28} />
+        </Link>
 
-          {demo && (
-            <p className="mt-5 inline-flex items-center gap-2 rounded-sm border border-warn/40 bg-warn/[.08]
-                          px-3 py-2 text-[12px] text-ink-2">
-              <span className="font-mono font-bold text-warn" aria-hidden>
-                !
-              </span>
-              Baza jos nije popunjena — prikazani brojevi su demonstracioni.
-            </p>
-          )}
-        </div>
-
-        <nav aria-label="Futer" className="md:min-w-[220px]">
-          <p className="label mb-4">Proizvod</p>
-          <ul className="space-y-2.5">
-            {PRIMARY.map((l) => (
+        <nav aria-label="Futer">
+          <ul className="flex flex-wrap gap-x-6 gap-y-2">
+            {LINKOVI.map((l) => (
               <li key={l.href}>
                 <Link
                   href={l.href}
@@ -45,33 +40,31 @@ export default function SiteFooter({ demo }: { demo: boolean }) {
               </li>
             ))}
             <li>
-              <Link
-                href="/profil#paketi"
+              <a
+                href={`mailto:${SITE.email}`}
                 className="text-small text-ink-3 transition-colors duration-fast hover:text-ink"
               >
-                Paketi i cene
-              </Link>
+                Kontakt
+              </a>
             </li>
           </ul>
         </nav>
       </div>
 
+      {demo && (
+        <div className="page pb-5">
+          <p className="text-[12px] text-warn">
+            Baza još nije popunjena — prikazani brojevi su demonstracioni.
+          </p>
+        </div>
+      )}
+
       <div className="border-t border-line">
-        <div className="page flex flex-wrap justify-between gap-x-8 gap-y-2 py-5 font-mono text-[10.5px]
-                        uppercase tracking-[0.12em] text-ink-4">
-          <span className="flex flex-wrap gap-x-5 gap-y-2">
-            <span>© {new Date().getFullYear()} {SITE.name}</span>
-            <Link href="/privatnost" className="transition-colors duration-fast hover:text-ink">
-              Privatnost
-            </Link>
-            <Link href="/uslovi" className="transition-colors duration-fast hover:text-ink">
-              Uslovi
-            </Link>
-            <a href={`mailto:${SITE.email}`} className="normal-case tracking-normal transition-colors duration-fast hover:text-ink">
-              {SITE.email}
-            </a>
+        <div className="page flex flex-col gap-1.5 py-4 text-[11.5px] text-ink-4 sm:flex-row sm:justify-between">
+          <span>
+            © {new Date().getFullYear()} {SITE.name}
           </span>
-          <span>Nezavisna analiticka platforma · bez veze sa Euroleague Basketball</span>
+          <span>Nezavisna platforma, nije povezana sa Euroleague Basketball.</span>
         </div>
       </div>
     </footer>
