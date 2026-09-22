@@ -106,9 +106,18 @@ export default async function Igraci() {
         }
       />
 
-      {/* ---------------- besplatan izbor ---------------- */}
+      {/* ---------------- besplatni izbori ---------------- */}
       {freePicks.length > 0 && (
-        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-8">
+          <SectionHead
+            eyebrow="Besplatno"
+            title="Petorka kola"
+            desc="Dva beka, dva krila i centar koje svaki nalog vidi, plus izbor sa naslovne strane. Najbolji izbori kola nisu ovde — oni idu u Pro paket."
+          />
+        </div>
+      )}
+      {freePicks.length > 0 && (
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {freePicks.map((p) => (
             <PlayerCard key={p.id} p={red(p)} teams={teams} rank={1} />
           ))}

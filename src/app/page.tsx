@@ -85,7 +85,12 @@ export default async function Home() {
   /* Naslovna je javna — sve što ide u pregledač prolazi kroz isto pravilo
      vidljivosti kao tabela igrača. `sviIgraci` ostaje samo na serveru. */
   const players = trimForTier(sviIgraci, me.tier);
-  const hero = players.find((p) => p.tier_pick === 'FREE') ?? players[0];
+  /* Na baneru stoji izbor koji skripta oznaci kao `baner` — treca najbolja
+     razlika kola. Prve dve ostaju Pro paketu. */
+  const hero =
+    players.find((p) => p.pick_group === 'baner') ??
+    players.find((p) => p.tier_pick === 'FREE') ??
+    players[0];
   const pro = jePro(me.tier);
 
   /* Top 3: igrači čija je projekcija vidljiva ovom nalogu, po razlici. Ako

@@ -434,16 +434,16 @@ upozorenje: ${writable.length - byId.size} duplih player_id — zadrzan red sa v
 /* ------------------------------------------------------------------ */
 /* IZBORI KOLA                                                         */
 /*                                                                     */
-/* Dva placena paketa, i izbori se ne dele izmedju njih:                */
-/*                                                                     */
-/*   PRO    5  najbolja razlika u celom kolu — samo za Pro              */
-/*   FREE   1  sledeci najbolji, sa fotografijom — javni izbor kola     */
-/*   PLUS  18  za svaku poziciju (G/F/C) i svaki rang (skup >12,         */
+/*   BANER  1  treca najbolja razlika u kolu — stoji na naslovnoj i    */
+/*             vidi je svako, i neprijavljen                            */
+/*   PRO    5  najbolja razlika u kolu, bez te trece — samo Pro         */
+/*   FREE   5  2 beka, 2 krila i 1 centar iz ostatka — svaki nalog      */
+/*   PLUS  18  za svaku poziciju (G/F/C) i svaki rang (skup >12,        */
 /*             srednji 8-12, jeftin <8) po 2 najbolja                   */
 /*   PLUS   9  u svakom tom pretincu po 1 igrac koga treba izbegavati   */
 /*                                                                     */
-/* Jedan igrac moze da bude samo u jednom pretincu. Pro ide prvi, da    */
-/* najbolji izbori kola zaista ne stignu ni do besplatnog ni do Plus.   */
+/* Jedan igrac je samo u jednom pretincu. Pro i baner idu prvi, pa      */
+/* najbolji izbori kola ne stizu ni do besplatnih ni do Plus izbora.    */
 /* ------------------------------------------------------------------ */
 
 const RANG = (cena) => (cena < 8 ? 'jeftin' : cena <= 12 ? 'srednji' : 'skup');
@@ -451,6 +451,9 @@ const RANGOVI = ['skup', 'srednji', 'jeftin'];
 const POZICIJE = ['G', 'F', 'C'];
 const TOP_PRO = 5;
 const PO_PRETINCU = 2;
+/* Besplatno: koliko igraca po poziciji. Sastav trazi dva beka, dva
+   krila i jednog centra, pa besplatan deo pokriva tacno jednu petorku. */
+const BESPLATNO = { G: 2, F: 2, C: 1 };
 
 const slikaPo = new Map(ourPlayers.map((p) => [p.id, p.photo]));
 
@@ -465,7 +468,20 @@ const uzmi = (uslov) => {
   return o;
 };
 
-/* 1) Pro — top 5 kola */
+/* 1) Baner — treci po razlici. Naslovna ga crta velikim portretom, pa
+      mora da ima fotografiju; ako je nema, uzima se sledeci koji je ima.
+      Prva dva ostaju Pro-u: baner je mamac, ne i najbolje sto imamo. */
+const baner =
+  ranked.filter((x) => slikaPo.get(x.player_id))[2] ??
+  ranked.find((x) => slikaPo.get(x.player_id)) ??
+  ranked[2];
+if (baner) {
+  uzet.add(baner.player_id);
+  baner.tier_pick = 'FREE';
+  baner.pick_group = 'baner';
+}
+
+/* 2) Pro — top 5 kola, bez banera */
 for (let i = 0; i < TOP_PRO; i++) {
   const o = uzmi(() => true);
   if (o) {
@@ -474,15 +490,19 @@ for (let i = 0; i < TOP_PRO; i++) {
   }
 }
 
-/* 2) besplatan izbor — najbolji preostali, po mogucstvu sa fotografijom,
-      jer ga naslovna prikazuje velikim portretom */
-const free = uzmi((x) => !!slikaPo.get(x.player_id)) ?? uzmi(() => true);
-if (free) {
-  free.tier_pick = 'FREE';
-  free.pick_group = RANG(free.price);
+/* 3) Besplatno — cela petorka iz ostatka, sa fotografijom kad je ima */
+for (const poz of POZICIJE) {
+  for (let i = 0; i < BESPLATNO[poz]; i++) {
+    const o =
+      uzmi((x) => x._pos === poz && !!slikaPo.get(x.player_id)) ?? uzmi((x) => x._pos === poz);
+    if (o) {
+      o.tier_pick = 'FREE';
+      o.pick_group = poz;
+    }
+  }
 }
 
-/* 3) Plus — po 2 izbora za svaku poziciju u svakom rangu */
+/* 4) Plus — po 2 izbora za svaku poziciju u svakom rangu */
 for (const poz of POZICIJE) {
   for (const rang of RANGOVI) {
     for (let i = 0; i < PO_PRETINCU; i++) {
@@ -495,7 +515,7 @@ for (const poz of POZICIJE) {
   }
 }
 
-/* 4) Plus — koga izbegavati. U istom pretincu, igrac koji najmanje vraca
+/* 5) Plus — koga izbegavati. U istom pretincu, igrac koji najmanje vraca
       za cenu koju trazi: najniza vrednost (razlika skinuta sa cene).
       Povredjeni se ne racunaju — da ne treba igrati povredjenog nije
       preporuka. Prednost imaju igraci koje ljudi stvarno biraju (bar 1%

@@ -30,7 +30,8 @@ export const metadata: Metadata = {
 type Celija = boolean | string;
 
 const POREDJENJE: { sta: string; free: Celija; plus: Celija; pro: Celija }[] = [
-  { sta: 'Besplatan izbor kola', free: true, plus: true, pro: true },
+  { sta: 'Izbori kola: 2 beka, 2 krila i centar', free: '5', plus: '5', pro: '5' },
+  { sta: 'Izbor sa naslovne strane', free: true, plus: true, pro: true },
   { sta: 'Raspored, procena mečeva i izazov kola', free: true, plus: true, pro: true },
   { sta: 'Izbori po poziciji i cenovnom rangu', free: false, plus: '18', pro: '18' },
   { sta: 'Igrači koje treba izbegavati', free: false, plus: '9', pro: '9' },

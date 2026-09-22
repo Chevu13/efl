@@ -85,11 +85,11 @@ export const PLANS: Plan[] = [
     code: 'PLUS',
     tier: 'PLUS',
     name: 'Plus',
-    priceCents: 200,
+    priceCents: 900,
     days: 30,
     pitch: 'Po dva izbora za svaku poziciju u svakom cenovnom rangu — i koga da izbegneš.',
     features: [
-      'Besplatan izbor kola',
+      'Sve besplatne izbore kola',
       '18 izbora: po 2 za bekove, krila i centre u svakom cenovnom rangu',
       '9 igrača koje treba izbegavati za cenu koju traže'
     ]
