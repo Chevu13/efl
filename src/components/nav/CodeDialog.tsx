@@ -90,8 +90,8 @@ export default function CodeDialog({
           Imam pristupni kod
         </h2>
         <p className="mt-2 text-small text-ink-3">
-          Kod dobijas uz uplatu ili kao nagradu za tacan listic. Otkljucava paket
-          odmah, bez placanja.
+          Kod dobijaš uz uplatu ili kao nagradu za vrh rang-liste izazova.
+          Otključava paket odmah, bez plaćanja.
         </p>
 
         {done ? (
